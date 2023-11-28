@@ -5,4 +5,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - run: jq --help
+    - run: |
+        jq --help
+        yq --help
