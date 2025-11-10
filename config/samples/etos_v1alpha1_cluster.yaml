@@ -14,23 +14,23 @@ spec:
       etosApiURL: http://cluster-sample-etos-api.etos-test.svc.cluster.local/api  # This is used by e2e test, don't change
       environmentTimeout: "60"
     api:
-      image: "ghcr.io/eiffel-community/etos-api:018a536f"
+      image: "ghcr.io/eiffel-community/etos-api:23d655e3"
     sse:
-      image: "ghcr.io/eiffel-community/etos-sse:018a536f"
+      image: "ghcr.io/eiffel-community/etos-sse:23d655e3"
     logArea:
-      image: "ghcr.io/eiffel-community/etos-logarea:018a536f"
+      image: "ghcr.io/eiffel-community/etos-logarea:23d655e3"
     environmentProvider:
       image: ghcr.io/eiffel-community/etos-environment-provider:b7590430
     suiteRunner:
-      image: ghcr.io/eiffel-community/etos-suite-runner:3c5575fd
+      image: ghcr.io/eiffel-community/etos-suite-runner:77de800f
       logListener:
         etosQueueName: "*.testlog"
-        image: ghcr.io/eiffel-community/etos-log-listener:3c5575fd
+        image: ghcr.io/eiffel-community/etos-log-listener:77de800f
     suiteStarter:
       image: ghcr.io/eiffel-community/etos-suite-starter:76543433
       eiffelQueueName: etos-suite-starter
     testRunner:
-      version: "3.6.0"
+      version: "3.7.5"
   database:
     deploy: true
   messageBus:
