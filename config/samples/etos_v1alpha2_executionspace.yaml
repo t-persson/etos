@@ -1,0 +1,9 @@
+apiVersion: etos.eiffel-community.github.io/v1alpha2
+kind: ExecutionSpace
+metadata:
+  labels:
+    app.kubernetes.io/name: etos
+    app.kubernetes.io/managed-by: kustomize
+  name: executionspace-sample
+spec:
+  provider_id: execution-space-provider-sample

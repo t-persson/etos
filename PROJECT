@@ -67,4 +67,31 @@ resources:
     conversion: true
     defaulting: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: eiffel-community.github.io
+  group: etos
+  kind: Iut
+  path: github.com/eiffel-community/etos/api/v1alpha2
+  version: v1alpha2
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: eiffel-community.github.io
+  group: etos
+  kind: ExecutionSpace
+  path: github.com/eiffel-community/etos/api/v1alpha2
+  version: v1alpha2
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: eiffel-community.github.io
+  group: etos
+  kind: LogArea
+  path: github.com/eiffel-community/etos/api/v1alpha2
+  version: v1alpha2
 version: "3"

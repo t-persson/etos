@@ -1,0 +1,323 @@
+// Copyright Axis Communications AB.
+//
+// For a full list of individual contributors, please see the commit history.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package controller
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
+	"github.com/eiffel-community/etos/internal/controller/jobs"
+	"github.com/eiffel-community/etos/internal/controller/status"
+)
+
+// LogAreaReconciler reconciles a LogArea object
+type LogAreaReconciler struct {
+	client.Client
+	Scheme *runtime.Scheme
+}
+
+// +kubebuilder:rbac:groups=etos.eiffel-community.github.io,resources=logarea,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=etos.eiffel-community.github.io,resources=logarea/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=etos.eiffel-community.github.io,resources=logarea/finalizers,verbs=update
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.1/pkg/reconcile
+func (r *LogAreaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := logf.FromContext(ctx)
+
+	logarea := &etosv1alpha2.LogArea{}
+	err := r.Get(ctx, req.NamespacedName, logarea)
+	if err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	if hasOwner(logarea.OwnerReferences, "Environment") {
+		if controllerutil.ContainsFinalizer(logarea, providerFinalizer) {
+			meta.SetStatusCondition(&logarea.Status.Conditions,
+				metav1.Condition{
+					Status:  metav1.ConditionTrue,
+					Type:    status.StatusActive,
+					Reason:  status.ReasonActive,
+					Message: "In use",
+				})
+			controllerutil.RemoveFinalizer(logarea, providerFinalizer)
+			if err := r.Update(ctx, logarea); err != nil {
+				if apierrors.IsConflict(err) {
+					return ctrl.Result{Requeue: true}, nil
+				}
+				return ctrl.Result{}, err
+			}
+		}
+		logger.Info("LogArea is being managed by Environment", "logarea", logarea.Name)
+		// We no longer own this LogArea. Let the Environment controller manage it.
+		return ctrl.Result{}, nil
+	}
+	// If the LogArea is considered 'Completed', it has been released. Check that the object is
+	// being deleted and contains the finalizer and remove the finalizer.
+	if logarea.Status.CompletionTime != nil {
+		if !logarea.ObjectMeta.DeletionTimestamp.IsZero() {
+			if controllerutil.ContainsFinalizer(logarea, providerFinalizer) {
+				controllerutil.RemoveFinalizer(logarea, providerFinalizer)
+				if err := r.Update(ctx, logarea); err != nil {
+					if apierrors.IsConflict(err) {
+						return ctrl.Result{Requeue: true}, nil
+					}
+					return ctrl.Result{}, err
+				}
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+	if err := r.reconcile(ctx, logarea); err != nil {
+		if apierrors.IsConflict(err) {
+			return ctrl.Result{Requeue: true}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// reconcile a logarea resource to its desired state.
+func (r *LogAreaReconciler) reconcile(ctx context.Context, logarea *etosv1alpha2.LogArea) error {
+	logger := logf.FromContext(ctx)
+
+	// Set initial statuses if not set.
+	if meta.FindStatusCondition(logarea.Status.Conditions, status.StatusActive) == nil {
+		meta.SetStatusCondition(&logarea.Status.Conditions,
+			metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    status.StatusActive,
+				Reason:  status.ReasonPending,
+				Message: "Waiting for environment",
+			})
+		return r.Status().Update(ctx, logarea)
+	}
+	if logarea.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(logarea, providerFinalizer) {
+			controllerutil.AddFinalizer(logarea, providerFinalizer)
+			logger.Info("LogArea is being managed by LogArea controller", "logarea", logarea.Name)
+			return r.Update(ctx, logarea)
+		}
+	}
+
+	if !logarea.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileLogAreaReleaser(ctx, logarea)
+	}
+	return nil
+}
+
+// reconcileLogAreaReleaser gets the status of a release job, creating a new release job if necessary.
+func (r *LogAreaReconciler) reconcileLogAreaReleaser(ctx context.Context, logarea *etosv1alpha2.LogArea) error {
+	conditions := &logarea.Status.Conditions
+	jobManager := jobs.NewJob(r.Client, LogAreaOwnerKey, logarea.GetName(), logarea.GetNamespace())
+	jobStatus, err := jobManager.Status(ctx)
+	if err != nil {
+		return err
+	}
+	switch jobStatus {
+	case jobs.StatusFailed:
+		result := jobManager.Result(ctx)
+		if meta.SetStatusCondition(conditions,
+			metav1.Condition{
+				Type:    status.StatusActive,
+				Status:  metav1.ConditionFalse,
+				Reason:  status.ReasonFailed,
+				Message: result.Description,
+			}) {
+			return r.Status().Update(ctx, logarea)
+		}
+	case jobs.StatusSuccessful:
+		result := jobManager.Result(ctx)
+		var condition metav1.Condition
+		if result.Conclusion == jobs.ConclusionFailed {
+			condition = metav1.Condition{
+				Type:    status.StatusActive,
+				Status:  metav1.ConditionFalse,
+				Reason:  status.ReasonFailed,
+				Message: result.Description,
+			}
+		} else {
+			condition = metav1.Condition{
+				Type:    status.StatusActive,
+				Status:  metav1.ConditionFalse,
+				Reason:  status.ReasonCompleted,
+				Message: result.Description,
+			}
+		}
+		logAreaCondition := meta.FindStatusCondition(*conditions, status.StatusActive)
+		logarea.Status.CompletionTime = &logAreaCondition.LastTransitionTime
+		if meta.SetStatusCondition(conditions, condition) {
+			return errors.Join(r.Status().Update(ctx, logarea), jobManager.Delete(ctx))
+		}
+	case jobs.StatusActive:
+		if meta.SetStatusCondition(conditions,
+			metav1.Condition{
+				Type:    status.StatusActive,
+				Status:  metav1.ConditionFalse,
+				Reason:  status.ReasonPending,
+				Message: "Releasing LogArea",
+			}) {
+			return r.Status().Update(ctx, logarea)
+		}
+	default:
+		// Since this is a release job, we don't want to release if we are not deleting.
+		if logarea.GetDeletionTimestamp().IsZero() {
+			return nil
+		}
+		if err := jobManager.Create(ctx, logarea, r.releaseJob); err != nil {
+			if meta.SetStatusCondition(conditions,
+				metav1.Condition{
+					Type:    status.StatusActive,
+					Status:  metav1.ConditionFalse,
+					Reason:  status.ReasonFailed,
+					Message: err.Error(),
+				}) {
+				return r.Status().Update(ctx, logarea)
+			}
+			return err
+		}
+		if meta.SetStatusCondition(conditions, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    status.StatusActive,
+			Reason:  status.ReasonPending,
+			Message: "Releasing LogArea",
+		}) {
+			return r.Status().Update(ctx, logarea)
+		}
+	}
+	return nil
+}
+
+// releaseJob is the job definition for a log area releaser.
+func (r LogAreaReconciler) releaseJob(ctx context.Context, obj client.Object) (*batchv1.Job, error) {
+	ttl := int32(300)
+	grace := int64(30)
+	backoff := int32(0)
+
+	logarea, ok := obj.(*etosv1alpha2.LogArea)
+	if !ok {
+		return nil, errors.New("object received from job manager is not a LogArea")
+	}
+
+	provider, err := getProvider(ctx, r, logarea.Spec.ProviderID, logarea.GetNamespace())
+	if err != nil {
+		return nil, err
+	}
+
+	jobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"app.kubernetes.io/name":    "logarea-releaser",
+				"app.kubernetes.io/part-of": "etos",
+			},
+			Annotations: make(map[string]string),
+			Name:        logarea.Name,
+			Namespace:   logarea.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: &ttl,
+			BackoffLimit:            &backoff,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: logarea.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/name":    "logarea-releaser",
+						"app.kubernetes.io/part-of": "etos",
+					},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &grace,
+					ServiceAccountName:            "provider", // TODO: Wrong service account
+					RestartPolicy:                 "Never",
+					Containers: []corev1.Container{
+						{
+							Name:            logarea.Name,
+							Image:           image(provider),
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							// TODO: Verify these resourceclaims
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("256Mi"),
+									corev1.ResourceCPU:    resource.MustParse("250m"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+								},
+							},
+							Args: []string{
+								"-release",
+								"-nodelete", // The resource is already being deleted, no need to delete again.
+								fmt.Sprintf("-namespace=%s", logarea.GetNamespace()),
+								fmt.Sprintf("-log-area=%s", logarea.GetName()),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return jobSpec, ctrl.SetControllerReference(logarea, jobSpec, r.Scheme)
+}
+
+// registerOwnerIndexForJob will set an index of the jobs that an logarea controller owns.
+func (r *LogAreaReconciler) registerOwnerIndexForJob(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, LogAreaOwnerKey, func(rawObj client.Object) []string {
+		job := rawObj.(*batchv1.Job)
+		owner := metav1.GetControllerOf(job)
+		if owner == nil {
+			return nil
+		}
+		if owner.APIVersion != APIv2GroupVersionString || owner.Kind != "LogArea" {
+			return nil
+		}
+
+		return []string{owner.Name}
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *LogAreaReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Register indexes for faster lookups
+	if err := r.registerOwnerIndexForJob(mgr); err != nil {
+		return err
+	}
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&etosv1alpha2.LogArea{}).
+		Named("logarea").
+		Owns(&batchv1.Job{}). // Release job
+		Complete(r)
+}

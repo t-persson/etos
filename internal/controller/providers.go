@@ -55,3 +55,25 @@ func checkProvider(ctx context.Context, c client.Reader, name string, namespace 
 	}
 	return fmt.Errorf("Provider '%s' does not have a status field", name)
 }
+
+// getProvider fetches a Provider resource by name from Kubernetes.
+func getProvider(ctx context.Context, c client.Reader, name, namespace string) (*etosv1alpha1.Provider, error) {
+	var provider etosv1alpha1.Provider
+	return &provider, c.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &provider)
+}
+
+// image returns an image that can be used to execute provider.
+func image(provider *etosv1alpha1.Provider) string {
+	var image string
+	// if provider.Spec.Image != nil {
+	// 	image = provider.Spec.Image.Image
+	// }
+	return "example.com/iut-provider:v0.0.1"
+	if provider.Spec.JSONTas != nil {
+		image = "example.com/jsontas-provider:v0.0.1" // TODO
+	}
+	if provider.Spec.Host != "" {
+		image = "example.com/external-provider:v0.0.1" // TODO
+	}
+	return image
+}
