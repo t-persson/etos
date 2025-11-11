@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // RunLogAreaProvider is the base runner for an LogArea provider. Checks input parameters and calls either Release or Provision on a Provider.
@@ -38,13 +39,13 @@ func RunLogAreaProvider(provider Provider) {
 
 	if params.releaseEnvironment {
 		if err := runLogAreaReleaser(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -59,13 +60,13 @@ func RunLogAreaProvider(provider Provider) {
 		}
 	} else {
 		if err := runLogAreaProvider(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -108,7 +109,7 @@ func runLogAreaProvider(params parameters, provider Provider) error {
 	if params.environmentRequestName == "" {
 		return errors.New("Must set -environment-request")
 	}
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -130,7 +131,7 @@ func runLogAreaProvider(params parameters, provider Provider) error {
 
 // GetLogArea gets an LogArea resource by name from Kubernetes.
 func GetLogArea(ctx context.Context, name, namespace string) (*v1alpha2.LogArea, error) {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +142,22 @@ func GetLogArea(ctx context.Context, name, namespace string) (*v1alpha2.LogArea,
 	return &logArea, nil
 }
 
+// GetLogAreas fetches all LogAreas for an environmentrequest from Kubernetes.
+func GetLogAreas(ctx context.Context, environmentRequestID, namespace string) (v1alpha2.LogAreaList, error) {
+	var logAreas v1alpha2.LogAreaList
+	cli, err := KubernetesClient()
+	if err != nil {
+		return logAreas, err
+	}
+	err = cli.List(
+		ctx,
+		&logAreas,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"etos.eiffel-community.github.io/environment-request-id": environmentRequestID},
+	)
+	return logAreas, err
+}
+
 // CreateLogArea creates a new LogArea resource in Kubernetes.
 //
 // The spec.ID and spec.ProviderID fields are automatically populated by this function. They will be overwritten if set.
@@ -148,7 +165,7 @@ func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.Environment
 	logger, _ := logr.FromContext(ctx)
 
 	logger.Info("Getting Kubernetes client")
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -192,7 +209,7 @@ func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.Environment
 
 // DeleteLogArea deletes an LogArea resource from Kubernetes.
 func DeleteLogArea(ctx context.Context, logArea *v1alpha2.LogArea) error {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}

@@ -107,8 +107,8 @@ func WriteResult(logger logr.Logger, result jobs.Result) error {
 	return os.WriteFile(terminationLog, b, os.ModePerm)
 }
 
-// kubernetesClient creates a new Kubernetes client or reuses an already created.
-func kubernetesClient() (client.Client, error) {
+// KubernetesClient creates a new Kubernetes client or reuses an already created.
+func KubernetesClient() (client.Client, error) {
 	var err error
 	if cli == nil {
 		cli, err = client.New(config.GetConfigOrDie(), client.Options{Scheme: scheme})

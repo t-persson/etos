@@ -39,13 +39,13 @@ func RunIutProvider(provider Provider) {
 
 	if params.releaseEnvironment {
 		if err := runIutReleaser(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -60,13 +60,13 @@ func RunIutProvider(provider Provider) {
 		}
 	} else {
 		if err := runIutProvider(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -109,7 +109,7 @@ func runIutProvider(params parameters, provider Provider) error {
 	if params.environmentRequestName == "" {
 		return errors.New("Must set -environment-request")
 	}
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func runIutProvider(params parameters, provider Provider) error {
 
 // GetIUT gets an IUT resource by name from Kubernetes.
 func GetIUT(ctx context.Context, name, namespace string) (*v1alpha2.Iut, error) {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func GetIUT(ctx context.Context, name, namespace string) (*v1alpha2.Iut, error) 
 // GetIUTs fetches all IUTs for an environmentrequest from Kubernetes.
 func GetIUTs(ctx context.Context, environmentRequestID, namespace string) (v1alpha2.IutList, error) {
 	var iuts v1alpha2.IutList
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return iuts, err
 	}
@@ -161,7 +161,7 @@ func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequ
 	logger, _ := logr.FromContext(ctx)
 
 	logger.Info("Getting Kubernetes client")
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequ
 
 // DeleteIUT deletes an IUT resource from Kubernetes.
 func DeleteIUT(ctx context.Context, iut *v1alpha2.Iut) error {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}

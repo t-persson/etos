@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // RunExecutionSpaceProvider is the base runner for an ExecutionSpace provider. Checks input parameters and calls either Release or Provision on a Provider.
@@ -38,13 +39,13 @@ func RunExecutionSpaceProvider(provider Provider) {
 
 	if params.releaseEnvironment {
 		if err := runExecutionSpaceReleaser(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -59,13 +60,13 @@ func RunExecutionSpaceProvider(provider Provider) {
 		}
 	} else {
 		if err := runExecutionSpaceProvider(params, provider); err != nil {
-			if err := WriteResult(params.logger,
+			if writeErr := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
 					Description: err.Error(),
 					Verdict:     jobs.VerdictNone,
-				}); err != nil {
-				params.logger.Error(err, "failed to write error result to termination-log")
+				}); writeErr != nil {
+				params.logger.Error(writeErr, "failed to write error result to termination-log")
 			}
 			panic(err)
 		}
@@ -108,7 +109,7 @@ func runExecutionSpaceProvider(params parameters, provider Provider) error {
 	if params.environmentRequestName == "" {
 		return errors.New("Must set -environment-request")
 	}
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -130,7 +131,7 @@ func runExecutionSpaceProvider(params parameters, provider Provider) error {
 
 // GetExecutionSpace gets an ExecutionSpace resource by name from Kubernetes.
 func GetExecutionSpace(ctx context.Context, name, namespace string) (*v1alpha2.ExecutionSpace, error) {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +142,22 @@ func GetExecutionSpace(ctx context.Context, name, namespace string) (*v1alpha2.E
 	return &executionSpace, nil
 }
 
+// GetExecutionSpaces fetches all ExecutionSpaces for an environmentrequest from Kubernetes.
+func GetExecutionSpaces(ctx context.Context, environmentRequestID, namespace string) (v1alpha2.ExecutionSpaceList, error) {
+	var executionSpaces v1alpha2.ExecutionSpaceList
+	cli, err := KubernetesClient()
+	if err != nil {
+		return executionSpaces, err
+	}
+	err = cli.List(
+		ctx,
+		&executionSpaces,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"etos.eiffel-community.github.io/environment-request-id": environmentRequestID},
+	)
+	return executionSpaces, err
+}
+
 // CreateExecutionSpace creates a new ExecutionSpace resource in Kubernetes.
 //
 // The spec.ID and spec.ProviderID fields are automatically populated by this function. They will be overwritten if set.
@@ -148,7 +165,7 @@ func CreateExecutionSpace(ctx context.Context, environmentrequest *v1alpha1.Envi
 	logger, _ := logr.FromContext(ctx)
 
 	logger.Info("Getting Kubernetes client")
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}
@@ -191,7 +208,7 @@ func CreateExecutionSpace(ctx context.Context, environmentrequest *v1alpha1.Envi
 
 // DeleteExecutionSpace deletes an ExecutionSpace resource from Kubernetes.
 func DeleteExecutionSpace(ctx context.Context, executionSpace *v1alpha2.ExecutionSpace) error {
-	cli, err := kubernetesClient()
+	cli, err := KubernetesClient()
 	if err != nil {
 		return err
 	}

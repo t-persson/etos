@@ -34,6 +34,7 @@ type IutSpec struct {
 	ProviderID string `json:"provider_id"`
 
 	// ProviderData is specific data provider by the IUT providers
+	// +optional
 	ProviderData *apiextensionsv1.JSON `json:"provider_data,omitempty"`
 }
 

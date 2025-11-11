@@ -39,6 +39,10 @@ type EnvironmentSpec struct {
 	// +kubebuilder:validation:Pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 	Context string `json:"context"`
 
+	// Providers describes which providers were used to create this environment
+	// +optional
+	Providers *Providers `json:"providers,omitempty"`
+
 	Priority   int                   `json:"priority"`
 	Tests      []Test                `json:"recipes"`
 	TestRunner string                `json:"test_runner"`
