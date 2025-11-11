@@ -10,3 +10,4 @@ spec:
   host: http://etos-executionspace.etos-test.svc.cluster.local/executionspace
   healthCheck:
     endpoint: v1alpha/selftest/ping
+  image: example.com/execution-space-provider:v0.0.1

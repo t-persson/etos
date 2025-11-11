@@ -7,6 +7,7 @@ metadata:
   name: log-area-provider-sample
 spec:
   type: log-area
+  image: example.com/log-area-provider:v0.0.1
   jsontas:
     log:
       id: log-area-provider-sample

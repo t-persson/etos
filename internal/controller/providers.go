@@ -65,22 +65,14 @@ func getProvider(ctx context.Context, c client.Reader, name, namespace string) (
 // image returns an image that can be used to execute provider.
 func image(provider *etosv1alpha1.Provider) string {
 	var image string
-	// if provider.Spec.Image != nil {
-	// 	image = provider.Spec.Image.Image
-	// }
-	if provider.Spec.Type == "iut" {
-		return "example.com/iut-provider:v0.0.1"
-	} else if provider.Spec.Type == "log-area" {
-		return "example.com/log-area-provider:v0.0.1"
-	} else {
-		return "example.com/execution-space-provider:v0.0.1"
+	if provider.Spec.Image != "" {
+		return provider.Spec.Image
 	}
-
 	if provider.Spec.JSONTas != nil {
-		image = "example.com/jsontas-provider:v0.0.1" // TODO
+		return "example.com/jsontas-provider:v0.0.1" // TODO
 	}
 	if provider.Spec.Host != "" {
-		image = "example.com/external-provider:v0.0.1" // TODO
+		return "example.com/external-provider:v0.0.1" // TODO
 	}
 	return image
 }
