@@ -144,7 +144,7 @@ func (r *LogAreaReconciler) reconcileLogAreaReleaser(ctx context.Context, logare
 	}
 	switch jobStatus {
 	case jobs.StatusFailed:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, logarea.Name)
 		if meta.SetStatusCondition(conditions,
 			metav1.Condition{
 				Type:    status.StatusActive,
@@ -155,7 +155,7 @@ func (r *LogAreaReconciler) reconcileLogAreaReleaser(ctx context.Context, logare
 			return r.Status().Update(ctx, logarea)
 		}
 	case jobs.StatusSuccessful:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, logarea.Name)
 		var condition metav1.Condition
 		if result.Conclusion == jobs.ConclusionFailed {
 			condition = metav1.Condition{

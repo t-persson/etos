@@ -144,7 +144,7 @@ func (r *ExecutionSpaceReconciler) reconcileExecutionSpaceReleaser(ctx context.C
 	}
 	switch jobStatus {
 	case jobs.StatusFailed:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, executionSpace.Name)
 		if meta.SetStatusCondition(conditions,
 			metav1.Condition{
 				Type:    status.StatusActive,
@@ -155,7 +155,7 @@ func (r *ExecutionSpaceReconciler) reconcileExecutionSpaceReleaser(ctx context.C
 			return r.Status().Update(ctx, executionSpace)
 		}
 	case jobs.StatusSuccessful:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, executionSpace.Name)
 		var condition metav1.Condition
 		if result.Conclusion == jobs.ConclusionFailed {
 			condition = metav1.Condition{

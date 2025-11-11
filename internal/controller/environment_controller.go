@@ -127,7 +127,7 @@ func (r *EnvironmentReconciler) reconcile(ctx context.Context, environment *etos
 	}
 	switch jobStatus {
 	case jobs.StatusFailed:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, environment.Name)
 		if meta.SetStatusCondition(conditions,
 			metav1.Condition{
 				Type:    status.StatusActive,
@@ -138,7 +138,7 @@ func (r *EnvironmentReconciler) reconcile(ctx context.Context, environment *etos
 			return r.Status().Update(ctx, environment)
 		}
 	case jobs.StatusSuccessful:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, environment.Name)
 		var condition metav1.Condition
 		if result.Conclusion == jobs.ConclusionFailed {
 			condition = metav1.Condition{
@@ -273,8 +273,10 @@ func (r EnvironmentReconciler) releaseJob(ctx context.Context, obj client.Object
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &grace,
-					ServiceAccountName:            fmt.Sprintf("%s-provider", clusterName),
-					RestartPolicy:                 "Never",
+					// ServiceAccountName:            fmt.Sprintf("%s-provider", clusterName),
+					// TODO: Wrong name
+					ServiceAccountName: "provider",
+					RestartPolicy:      "Never",
 					Containers: []corev1.Container{
 						{
 							Name:            environment.Name,

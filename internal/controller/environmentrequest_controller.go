@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	etosv1alpha1 "github.com/eiffel-community/etos/api/v1alpha1"
+	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/eiffel-community/etos/internal/controller/status"
 )
@@ -50,6 +51,9 @@ type EnvironmentRequestReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+// TODO: Manage deletion of IUTs, LogAreas & ExecutionSpaces on error
+// TODO: Wrong serviceAccountName
 
 // +kubebuilder:rbac:groups=etos.eiffel-community.github.io,resources=environmentrequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=etos.eiffel-community.github.io,resources=environmentrequests/status,verbs=get;update;patch
@@ -157,7 +161,7 @@ func (r *EnvironmentRequestReconciler) reconcileEnvironmentProvider(ctx context.
 	}
 	switch jobStatus {
 	case jobs.StatusFailed:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, "environment-provider")
 		if meta.SetStatusCondition(conditions,
 			metav1.Condition{
 				Type:    status.StatusReady,
@@ -170,7 +174,7 @@ func (r *EnvironmentRequestReconciler) reconcileEnvironmentProvider(ctx context.
 			return r.Status().Update(ctx, environmentrequest)
 		}
 	case jobs.StatusSuccessful:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, "environment-provider")
 		var condition metav1.Condition
 		if result.Conclusion == jobs.ConclusionFailed {
 			condition = metav1.Condition{
@@ -397,22 +401,52 @@ func (r EnvironmentRequestReconciler) reconcileDeletion(ctx context.Context, env
 			return ctrl.Result{}, err
 		}
 	}
+
+	var allErr error
 	var environments etosv1alpha1.EnvironmentList
 	if err := r.List(ctx, &environments, client.InNamespace(environmentrequest.Namespace), client.MatchingLabels{"etos.eiffel-community.github.io/id": environmentrequest.Spec.Identifier}); err != nil {
-		logger.Error(err, fmt.Sprintf("could not list pods for job %s", environmentrequest.Name))
+		logger.Error(err, fmt.Sprintf("could not list environments for environmentrequest %s", environmentrequest.Name))
 		return ctrl.Result{Requeue: true}, err
 	}
-	var allErr error
-	var err error
-	for _, environment := range environments.Items {
-		// Environment is not deleted.
-		if environment.ObjectMeta.DeletionTimestamp.IsZero() {
-			if err = r.Delete(ctx, &environment); err != nil {
-				logger.Error(err, "failed to delete environment", "environment", environment)
-				allErr = errors.Join(allErr, err)
-			}
-		}
+	if err := r.deleteEnvironments(ctx, environments); err != nil {
+		allErr = errors.Join(allErr, err)
 	}
+	var iuts etosv1alpha2.IutList
+	if err := r.List(ctx, &iuts, client.InNamespace(environmentrequest.Namespace), client.MatchingLabels{"etos.eiffel-community.github.io/id": environmentrequest.Spec.Identifier}); err != nil {
+		logger.Error(err, fmt.Sprintf("could not list iuts for environmentrequest %s", environmentrequest.Name))
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.deleteIuts(ctx, iuts); err != nil {
+		allErr = errors.Join(allErr, err)
+	}
+	var logAreas etosv1alpha2.LogAreaList
+	if err := r.List(ctx, &logAreas, client.InNamespace(environmentrequest.Namespace), client.MatchingLabels{"etos.eiffel-community.github.io/id": environmentrequest.Spec.Identifier}); err != nil {
+		logger.Error(err, fmt.Sprintf("could not list iuts for environmentrequest %s", environmentrequest.Name))
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.deleteLogAreas(ctx, logAreas); err != nil {
+		allErr = errors.Join(allErr, err)
+	}
+	var executionSpaces etosv1alpha2.ExecutionSpaceList
+	if err := r.List(ctx, &executionSpaces, client.InNamespace(environmentrequest.Namespace), client.MatchingLabels{"etos.eiffel-community.github.io/id": environmentrequest.Spec.Identifier}); err != nil {
+		logger.Error(err, fmt.Sprintf("could not list iuts for environmentrequest %s", environmentrequest.Name))
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.deleteExecutionSpaces(ctx, executionSpaces); err != nil {
+		allErr = errors.Join(allErr, err)
+	}
+
+	// var allErr error
+	// var err error
+	// for _, environment := range environments.Items {
+	// 	// Environment is not deleted.
+	// 	if environment.ObjectMeta.DeletionTimestamp.IsZero() {
+	// 		if err = r.Delete(ctx, &environment); err != nil {
+	// 			logger.Error(err, "failed to delete environment", "environment", environment)
+	// 			allErr = errors.Join(allErr, err)
+	// 		}
+	// 	}
+	// }
 	if allErr != nil {
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -431,9 +465,73 @@ func (r EnvironmentRequestReconciler) reconcileDeletion(ctx context.Context, env
 	return ctrl.Result{}, nil
 }
 
+// deleteEnvironments deletes a list of environments.
+func (r EnvironmentRequestReconciler) deleteEnvironments(ctx context.Context, environments etosv1alpha1.EnvironmentList) error {
+	logger := logf.FromContext(ctx)
+	var err error
+	var allErr error
+	for _, environment := range environments.Items {
+		if environment.ObjectMeta.DeletionTimestamp.IsZero() {
+			if err = r.Delete(ctx, &environment); err != nil {
+				logger.Error(err, "failed to delete environment", "environment", environment)
+				allErr = errors.Join(allErr, err)
+			}
+		}
+	}
+	return allErr
+}
+
+// deleteIuts deletes a list of iuts.
+func (r EnvironmentRequestReconciler) deleteIuts(ctx context.Context, iuts etosv1alpha2.IutList) error {
+	logger := logf.FromContext(ctx)
+	var err error
+	var allErr error
+	for _, iut := range iuts.Items {
+		if iut.ObjectMeta.DeletionTimestamp.IsZero() {
+			if err = r.Delete(ctx, &iut); err != nil {
+				logger.Error(err, "failed to delete iut", "iut", iut)
+				allErr = errors.Join(allErr, err)
+			}
+		}
+	}
+	return allErr
+}
+
+// deleteLogAreas deletes a list of log areas.
+func (r EnvironmentRequestReconciler) deleteLogAreas(ctx context.Context, logAreas etosv1alpha2.LogAreaList) error {
+	logger := logf.FromContext(ctx)
+	var err error
+	var allErr error
+	for _, logArea := range logAreas.Items {
+		if logArea.ObjectMeta.DeletionTimestamp.IsZero() {
+			if err = r.Delete(ctx, &logArea); err != nil {
+				logger.Error(err, "failed to delete logArea", "logArea", logArea)
+				allErr = errors.Join(allErr, err)
+			}
+		}
+	}
+	return allErr
+}
+
+// deleteExecutionSpaces deletes a list of execution spaces.
+func (r EnvironmentRequestReconciler) deleteExecutionSpaces(ctx context.Context, executionSpaces etosv1alpha2.ExecutionSpaceList) error {
+	logger := logf.FromContext(ctx)
+	var err error
+	var allErr error
+	for _, executionSpace := range executionSpaces.Items {
+		if executionSpace.ObjectMeta.DeletionTimestamp.IsZero() {
+			if err = r.Delete(ctx, &executionSpace); err != nil {
+				logger.Error(err, "failed to delete executionSpace", "executionSpace", executionSpace)
+				allErr = errors.Join(allErr, err)
+			}
+		}
+	}
+	return allErr
+}
+
 // environmentProviderJob is the job definition for an etos environment provider.
 func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context, obj client.Object) (*batchv1.Job, error) {
-	logger := logf.FromContext(ctx)
+	// logger := logf.FromContext(ctx)
 	ttl := int32(300)
 	grace := int64(30)
 	backoff := int32(0)
@@ -443,11 +541,11 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 		return nil, errors.New("object received from job manager is not an EnvironmentRequest")
 	}
 
-	envVarList, err := r.envVarListFrom(ctx, environmentrequest)
-	if err != nil {
-		logger.Error(err, "Failed to create environment variable list for environment provider")
-		return nil, err
-	}
+	// envVarList, err := r.envVarListFrom(ctx, environmentrequest)
+	// if err != nil {
+	// 	logger.Error(err, "Failed to create environment variable list for environment provider")
+	// 	return nil, err
+	// }
 
 	labels := map[string]string{
 		"etos.eiffel-community.github.io/id": environmentrequest.Spec.Identifier, // TODO: omitempty
@@ -456,6 +554,19 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 	}
 	if cluster := environmentrequest.Labels["etos.eiffel-community.github.io/cluster"]; cluster != "" {
 		labels["etos.eiffel-community.github.io/cluster"] = cluster
+	}
+
+	iutProvider, err := getProvider(ctx, r.Client, environmentrequest.Spec.Providers.IUT.ID, environmentrequest.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	logAreaProvider, err := getProvider(ctx, r.Client, environmentrequest.Spec.Providers.LogArea.ID, environmentrequest.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	executionSpaceProvider, err := getProvider(ctx, r.Client, environmentrequest.Spec.Providers.ExecutionSpace.ID, environmentrequest.Namespace)
+	if err != nil {
+		return nil, err
 	}
 
 	job := &batchv1.Job{
@@ -474,14 +585,48 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:            environmentrequest.Spec.ServiceAccountName,
+					// TODO:
+					ServiceAccountName: "provider",
+					// ServiceAccountName:            environmentrequest.Spec.ServiceAccountName,
 					TerminationGracePeriodSeconds: &grace,
 					RestartPolicy:                 "Never",
+					InitContainers: []corev1.Container{
+						{
+							Name:  "iut-provider",
+							Image: image(iutProvider),
+							Args: []string{
+								fmt.Sprintf("-namespace=%s", environmentrequest.Namespace),
+								fmt.Sprintf("-environment-request=%s", environmentrequest.Name),
+								fmt.Sprintf("-provider=%s", iutProvider.Name),
+							},
+						},
+						{
+							Name:  "log-area-provider",
+							Image: image(logAreaProvider),
+							Args: []string{
+								fmt.Sprintf("-namespace=%s", environmentrequest.Namespace),
+								fmt.Sprintf("-environment-request=%s", environmentrequest.Name),
+								fmt.Sprintf("-provider=%s", logAreaProvider.Name),
+							},
+						},
+						{
+							Name:  "execution-space-provider",
+							Image: image(executionSpaceProvider),
+							Args: []string{
+								fmt.Sprintf("-namespace=%s", environmentrequest.Namespace),
+								fmt.Sprintf("-environment-request=%s", environmentrequest.Name),
+								fmt.Sprintf("-provider=%s", executionSpaceProvider.Name),
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
-							Name:            environmentrequest.Name,
-							Image:           environmentrequest.Spec.Image.Image,
-							ImagePullPolicy: environmentrequest.Spec.ImagePullPolicy,
+							Name:  "environment-provider",
+							Image: environmentrequest.Spec.Config.EnvironmentProviderImage,
+							Args: []string{
+								fmt.Sprintf("-namespace=%s", environmentrequest.Namespace),
+								fmt.Sprintf("-environment-request=%s", environmentrequest.Name),
+							},
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceMemory: resource.MustParse("256Mi"),
@@ -492,7 +637,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 									corev1.ResourceCPU:    resource.MustParse("100m"),
 								},
 							},
-							Env: envVarList,
+							// Env: envVarList,
 						},
 					},
 				},

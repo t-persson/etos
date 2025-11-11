@@ -144,7 +144,7 @@ func (r *IutReconciler) reconcileIutReleaser(ctx context.Context, iut *etosv1alp
 	}
 	switch jobStatus {
 	case jobs.StatusFailed:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, iut.Name)
 		if meta.SetStatusCondition(conditions,
 			metav1.Condition{
 				Type:    status.StatusActive,
@@ -155,7 +155,7 @@ func (r *IutReconciler) reconcileIutReleaser(ctx context.Context, iut *etosv1alp
 			return r.Status().Update(ctx, iut)
 		}
 	case jobs.StatusSuccessful:
-		result := jobManager.Result(ctx)
+		result := jobManager.Result(ctx, iut.Name)
 		var condition metav1.Condition
 		if result.Conclusion == jobs.ConclusionFailed {
 			condition = metav1.Condition{

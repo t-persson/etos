@@ -187,7 +187,6 @@ func CreateEnvironment(ctx context.Context, environmentrequest *v1alpha1.Environ
 		return err
 	}
 	labels := map[string]string{
-		"etos.eiffel-community.github.io/provider":               environmentrequest.Spec.Providers.IUT.ID,
 		"etos.eiffel-community.github.io/environment-request":    environmentrequest.Spec.Name,
 		"etos.eiffel-community.github.io/environment-request-id": environmentrequest.Spec.ID,
 		"app.kubernetes.io/name":                                 "environment-provider",
