@@ -16,8 +16,6 @@
 package release
 
 import (
-	"fmt"
-
 	"github.com/eiffel-community/etos/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +37,6 @@ func ExecutionSpaceReleaserContainer(executionSpace *v1alpha2.ExecutionSpace, im
 		executionSpace.Name,
 		executionSpace.Namespace,
 		image,
-		fmt.Sprintf("-execution-space=%s", executionSpace.Name),
 		noDelete,
 	)
 }

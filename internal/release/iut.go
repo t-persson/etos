@@ -16,8 +16,6 @@
 package release
 
 import (
-	"fmt"
-
 	"github.com/eiffel-community/etos/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +37,6 @@ func IutReleaserContainer(iut *v1alpha2.Iut, image string, noDelete bool) corev1
 		iut.Name,
 		iut.Namespace,
 		image,
-		fmt.Sprintf("-iut=%s", iut.Name),
 		noDelete,
 	)
 }

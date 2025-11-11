@@ -16,8 +16,6 @@
 package release
 
 import (
-	"fmt"
-
 	"github.com/eiffel-community/etos/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +25,7 @@ import (
 func LogAreaReleaser(logArea *v1alpha2.LogArea, image string, noDelete bool) *batchv1.Job {
 	return ReleaseJob(
 		logArea.Name,
-		"logArea-releaser",
+		"log-area-releaser",
 		logArea.Namespace,
 		LogAreaReleaserContainer(logArea, image, noDelete),
 	)
@@ -39,7 +37,6 @@ func LogAreaReleaserContainer(logArea *v1alpha2.LogArea, image string, noDelete 
 		logArea.Name,
 		logArea.Namespace,
 		image,
-		fmt.Sprintf("-log-area=%s", logArea.Name),
 		noDelete,
 	)
 }

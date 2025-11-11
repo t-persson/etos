@@ -27,7 +27,7 @@ type genericIutProvider struct{}
 
 // main creates a new Iut resource based on data in an EnvironmentRequest.
 func main() {
-	provider.RunIUTProvider(&genericIutProvider{})
+	provider.RunIutProvider(&genericIutProvider{})
 }
 
 // Provision provisions a new IUT.
