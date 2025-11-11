@@ -68,7 +68,14 @@ func image(provider *etosv1alpha1.Provider) string {
 	// if provider.Spec.Image != nil {
 	// 	image = provider.Spec.Image.Image
 	// }
-	return "example.com/iut-provider:v0.0.1"
+	if provider.Spec.Type == "iut" {
+		return "example.com/iut-provider:v0.0.1"
+	} else if provider.Spec.Type == "log-area" {
+		return "example.com/log-area-provider:v0.0.1"
+	} else {
+		return "example.com/execution-space-provider:v0.0.1"
+	}
+
 	if provider.Spec.JSONTas != nil {
 		image = "example.com/jsontas-provider:v0.0.1" // TODO
 	}

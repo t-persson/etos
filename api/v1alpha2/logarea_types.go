@@ -22,8 +22,23 @@ import (
 
 // LogAreaSpec defines the desired state of LogArea
 type LogAreaSpec struct {
+	// ID is the ID for the LogArea. The ID is a UUID, any version, and regex matches that.
+	// +kubebuilder:validation:Pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	ID string `json:"id"`
+
 	// ProviderID is the name of the Provider used to create this LogArea.
 	ProviderID string `json:"provider_id"`
+
+	Download []string          `json:"download"`
+	LiveLogs string            `json:"livelogs"`
+	Logs     map[string]string `json:"logs"`
+	Upload   Upload            `json:"upload"`
+}
+
+type Upload struct {
+	AsJSON bool   `json:"as_json"`
+	Method string `json:"method"`
+	URL    string `json:"url"`
 }
 
 // LogAreaStatus defines the observed state of LogArea.

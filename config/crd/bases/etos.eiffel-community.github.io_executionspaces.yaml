@@ -49,11 +49,59 @@ spec:
           spec:
             description: spec defines the desired state of ExecutionSpace
             properties:
+              id:
+                description: ID is the ID for the ExecutionSpace. The ID is a UUID,
+                  any version, and regex matches that.
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+                type: string
+              instructions:
+                description: Instructions are the instructions for launching a TestRunner.
+                properties:
+                  environment:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  identifier:
+                    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+                    type: string
+                  image:
+                    type: string
+                  parameters:
+                    additionalProperties:
+                      type: string
+                    type: object
+                required:
+                - environment
+                - identifier
+                - image
+                - parameters
+                type: object
               provider_id:
                 description: ProviderID is the name of the Provider used to create
                   this ExecutionSpace.
                 type: string
+              request:
+                description: Only used in ETOS v0. Request describes how to start
+                  up an execution space.
+                properties:
+                  headers:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  json:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  method:
+                    type: string
+                  timeout:
+                    type: integer
+                  url:
+                    type: string
+                type: object
             required:
+            - id
+            - instructions
             - provider_id
             type: object
           status:

@@ -49,10 +49,23 @@ type parameters struct {
 	logger                 logr.Logger
 }
 
+type ProvisionConfig struct {
+	MinimumAmount      int
+	MaximumAmount      int
+	Namespace          string
+	EnvironmentRequest *v1alpha1.EnvironmentRequest
+}
+
+type ReleaseConfig struct {
+	Name      string
+	Namespace string
+	NoDelete  bool
+}
+
 // Provider is an interface for providers to implement for the Run* functions.
 type Provider interface {
-	Provision(ctx context.Context, logger logr.Logger, environmentRequest v1alpha1.EnvironmentRequest, namespace string) error
-	Release(ctx context.Context, logger logr.Logger, name string, namespace string, noRelease bool) error
+	Provision(ctx context.Context, logger logr.Logger, cfg ProvisionConfig) error
+	Release(ctx context.Context, logger logr.Logger, cfg ReleaseConfig) error
 }
 
 // init sets up the ETOS controller schemes as well as the default schemes from client-go.

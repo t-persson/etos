@@ -17,8 +17,9 @@ package main
 
 import (
 	"context"
+	"errors"
 
-	"github.com/eiffel-community/etos/api/v1alpha1"
+	"github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/pkg/provider"
 	"github.com/go-logr/logr"
 )
@@ -31,10 +32,14 @@ func main() {
 }
 
 // Provision provisions a new IUT.
-func (p *genericIutProvider) Provision(ctx context.Context, logger logr.Logger, environmentRequest v1alpha1.EnvironmentRequest, namespace string) error {
+func (p *genericIutProvider) Provision(ctx context.Context, logger logr.Logger, cfg provider.ProvisionConfig) error {
+	environmentRequest := cfg.EnvironmentRequest
 	logger.Info("Provisioning a new IUT for EnvironmentRequest", "EnvironmentRequest", environmentRequest.Name, "Namespace", environmentRequest.Namespace)
-	for range environmentRequest.Spec.MaximumAmount {
-		if err := provider.CreateIUT(ctx, &environmentRequest, namespace); err != nil {
+	if cfg.MinimumAmount <= 0 {
+		return errors.New("minimum amount of IUTs requested is less than or equal to 0")
+	}
+	for range cfg.MinimumAmount {
+		if err := provider.CreateIUT(ctx, environmentRequest, cfg.Namespace, v1alpha2.IutSpec{}); err != nil {
 			return err
 		}
 	}
@@ -42,14 +47,14 @@ func (p *genericIutProvider) Provision(ctx context.Context, logger logr.Logger, 
 }
 
 // Release releases an IUT.
-func (p *genericIutProvider) Release(ctx context.Context, logger logr.Logger, name, namespace string, noDelete bool) error {
-	logger.Info("Releasing IUT", "Name", name, "Namespace", namespace)
-	iut, err := provider.GetIUT(ctx, name, namespace)
+func (p *genericIutProvider) Release(ctx context.Context, logger logr.Logger, cfg provider.ReleaseConfig) error {
+	logger.Info("Releasing IUT", "Name", cfg.Name, "Namespace", cfg.Namespace)
+	iut, err := provider.GetIUT(ctx, cfg.Name, cfg.Namespace)
 	if err != nil {
 		return err
 	}
 	logger.Info("IUT", "name", iut.Name)
-	if noDelete {
+	if cfg.NoDelete {
 		return nil
 	} else {
 		return provider.DeleteIUT(ctx, iut)

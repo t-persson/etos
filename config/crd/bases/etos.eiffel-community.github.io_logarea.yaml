@@ -49,12 +49,45 @@ spec:
           spec:
             description: spec defines the desired state of LogArea
             properties:
+              download:
+                items:
+                  type: string
+                type: array
+              id:
+                description: ID is the ID for the LogArea. The ID is a UUID, any version,
+                  and regex matches that.
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+                type: string
+              livelogs:
+                type: string
+              logs:
+                additionalProperties:
+                  type: string
+                type: object
               provider_id:
                 description: ProviderID is the name of the Provider used to create
                   this LogArea.
                 type: string
+              upload:
+                properties:
+                  as_json:
+                    type: boolean
+                  method:
+                    type: string
+                  url:
+                    type: string
+                required:
+                - as_json
+                - method
+                - url
+                type: object
             required:
+            - download
+            - id
+            - livelogs
+            - logs
             - provider_id
+            - upload
             type: object
           status:
             description: status defines the observed state of LogArea

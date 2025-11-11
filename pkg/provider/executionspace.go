@@ -30,14 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// RunLogAreaProvider is the base runner for an LogArea provider. Checks input parameters and calls either Release or Provision on a Provider.
+// RunExecutionSpaceProvider is the base runner for an ExecutionSpace provider. Checks input parameters and calls either Release or Provision on a Provider.
 //
 // This function panics on errors, propagating errors back to the controller that executed it.
-func RunLogAreaProvider(provider Provider) {
+func RunExecutionSpaceProvider(provider Provider) {
 	params := loadParameters()
 
 	if params.releaseEnvironment {
-		if err := runLogAreaReleaser(params, provider); err != nil {
+		if err := runExecutionSpaceReleaser(params, provider); err != nil {
 			if err := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
@@ -51,14 +51,14 @@ func RunLogAreaProvider(provider Provider) {
 		if err := WriteResult(params.logger,
 			jobs.Result{
 				Conclusion:  jobs.ConclusionSuccessful,
-				Description: "Successfully released LogArea",
+				Description: "Successfully released ExecutionSpace",
 				Verdict:     jobs.VerdictNone,
 			}); err != nil {
 			params.logger.Error(err, "failed to write error result to termination-log")
 			panic(err)
 		}
 	} else {
-		if err := runLogAreaProvider(params, provider); err != nil {
+		if err := runExecutionSpaceProvider(params, provider); err != nil {
 			if err := WriteResult(params.logger,
 				jobs.Result{
 					Conclusion:  jobs.ConclusionFailed,
@@ -72,7 +72,7 @@ func RunLogAreaProvider(provider Provider) {
 		if err := WriteResult(params.logger,
 			jobs.Result{
 				Conclusion:  jobs.ConclusionSuccessful,
-				Description: "Successfully provisioned LogAreas",
+				Description: "Successfully provisioned ExecutionSpaces",
 				Verdict:     jobs.VerdictNone,
 			}); err != nil {
 			params.logger.Error(err, "failed to write error result to termination-log")
@@ -81,8 +81,8 @@ func RunLogAreaProvider(provider Provider) {
 	}
 }
 
-// runLogAreaReleaser is the base releaser for a LogArea provider. Checks input parameters and calls Release on a Provider.
-func runLogAreaReleaser(params parameters, provider Provider) error {
+// runExecutionSpaceReleaser is the base releaser for a ExecutionSpace provider. Checks input parameters and calls Release on a Provider.
+func runExecutionSpaceReleaser(params parameters, provider Provider) error {
 	ctx := context.Background()
 	logger := params.logger
 	if params.namespace == "" {
@@ -98,8 +98,8 @@ func runLogAreaReleaser(params parameters, provider Provider) error {
 	})
 }
 
-// runLogAreaProvider is the base runner for a LogArea provider. Checks input parameters and calls Provision on a Provider.
-func runLogAreaProvider(params parameters, provider Provider) error {
+// runExecutionSpaceProvider is the base runner for a ExecutionSpace provider. Checks input parameters and calls Provision on a Provider.
+func runExecutionSpaceProvider(params parameters, provider Provider) error {
 	ctx := context.Background()
 	logger := params.logger
 	if params.namespace == "" {
@@ -128,23 +128,23 @@ func runLogAreaProvider(params parameters, provider Provider) error {
 	})
 }
 
-// GetLogArea gets an LogArea resource by name from Kubernetes.
-func GetLogArea(ctx context.Context, name, namespace string) (*v1alpha2.LogArea, error) {
+// GetExecutionSpace gets an ExecutionSpace resource by name from Kubernetes.
+func GetExecutionSpace(ctx context.Context, name, namespace string) (*v1alpha2.ExecutionSpace, error) {
 	cli, err := kubernetesClient()
 	if err != nil {
 		return nil, err
 	}
-	var logArea v1alpha2.LogArea
-	if err := cli.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &logArea); err != nil {
+	var executionSpace v1alpha2.ExecutionSpace
+	if err := cli.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &executionSpace); err != nil {
 		return nil, err
 	}
-	return &logArea, nil
+	return &executionSpace, nil
 }
 
-// CreateLogArea creates a new LogArea resource in Kubernetes.
+// CreateExecutionSpace creates a new ExecutionSpace resource in Kubernetes.
 //
 // The spec.ID and spec.ProviderID fields are automatically populated by this function. They will be overwritten if set.
-func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequest, namespace string, spec v1alpha2.LogAreaSpec) error {
+func CreateExecutionSpace(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequest, namespace string, spec v1alpha2.ExecutionSpaceSpec) error {
 	logger, _ := logr.FromContext(ctx)
 
 	logger.Info("Getting Kubernetes client")
@@ -153,10 +153,10 @@ func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.Environment
 		return err
 	}
 	labels := map[string]string{
-		"etos.eiffel-community.github.io/provider":               environmentrequest.Spec.Providers.LogArea.ID,
+		"etos.eiffel-community.github.io/provider":               environmentrequest.Spec.Providers.ExecutionSpace.ID,
 		"etos.eiffel-community.github.io/environment-request":    environmentrequest.Spec.Name,
 		"etos.eiffel-community.github.io/environment-request-id": environmentrequest.Spec.ID,
-		"app.kubernetes.io/name":                                 "log-area-provider",
+		"app.kubernetes.io/name":                                 "execution-space-provider",
 		"app.kubernetes.io/part-of":                              "etos",
 	}
 	if cluster := environmentrequest.Labels["etos.eiffel-community.github.io/cluster"]; cluster != "" {
@@ -167,15 +167,14 @@ func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.Environment
 	}
 
 	spec.ID = uuid.NewString()
-	spec.ProviderID = environmentrequest.Spec.Providers.LogArea.ID
+	spec.ProviderID = environmentrequest.Spec.Providers.ExecutionSpace.ID
 
 	isController := false
 	blockOwnerDeletion := true
-	logger.Info("Creating LogArea", "environmentrequest", environmentrequest.Spec.Name)
-	return cli.Create(ctx, &v1alpha2.LogArea{
+	return cli.Create(ctx, &v1alpha2.ExecutionSpace{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:       labels,
-			GenerateName: fmt.Sprintf("%s-log-area-", strings.ToLower(environmentrequest.Spec.Name)),
+			GenerateName: fmt.Sprintf("%s-execution-space-", strings.ToLower(environmentrequest.Spec.Name)),
 			Namespace:    namespace,
 			OwnerReferences: []metav1.OwnerReference{{
 				Kind:               "EnvironmentRequest",
@@ -190,11 +189,11 @@ func CreateLogArea(ctx context.Context, environmentrequest *v1alpha1.Environment
 	})
 }
 
-// DeleteLogArea deletes an LogArea resource from Kubernetes.
-func DeleteLogArea(ctx context.Context, logArea *v1alpha2.LogArea) error {
+// DeleteExecutionSpace deletes an ExecutionSpace resource from Kubernetes.
+func DeleteExecutionSpace(ctx context.Context, executionSpace *v1alpha2.ExecutionSpace) error {
 	cli, err := kubernetesClient()
 	if err != nil {
 		return err
 	}
-	return cli.Delete(ctx, logArea)
+	return cli.Delete(ctx, executionSpace)
 }

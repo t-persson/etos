@@ -49,11 +49,24 @@ spec:
           spec:
             description: spec defines the desired state of Iut
             properties:
+              id:
+                description: ID is the ID for the IUT. The ID is a UUID, any version,
+                  and regex matches that.
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+                type: string
+              identity:
+                description: Identity is the PackageURL definition of the IUT.
+                type: string
+              provider_data:
+                description: ProviderData is specific data provider by the IUT providers
+                x-kubernetes-preserve-unknown-fields: true
               provider_id:
                 description: ProviderID is the name of the Provider used to create
                   this Iut.
                 type: string
             required:
+            - id
+            - identity
             - provider_id
             type: object
           status:

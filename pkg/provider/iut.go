@@ -25,8 +25,10 @@ import (
 	"github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // RunIutProvider is the base runner for an IUT provider. Checks input parameters and calls either Release or Provision on a Provider.
@@ -90,8 +92,11 @@ func runIutReleaser(params parameters, provider Provider) error {
 	if params.name == "" {
 		return errors.New("Must set -name")
 	}
-	logger.Info("Release flag set, releasing IUT")
-	return provider.Release(ctx, logger, params.name, params.namespace, params.noDelete)
+	return provider.Release(ctx, logger, ReleaseConfig{
+		Name:      params.name,
+		Namespace: params.namespace,
+		NoDelete:  params.noDelete,
+	})
 }
 
 // runIutProvider is the base provider for an IUT provider. Checks input parameters and calls Provision on a Provider.
@@ -104,11 +109,20 @@ func runIutProvider(params parameters, provider Provider) error {
 	if params.environmentRequestName == "" {
 		return errors.New("Must set -environment-request")
 	}
+	cli, err := kubernetesClient()
+	if err != nil {
+		return err
+	}
 	var request v1alpha1.EnvironmentRequest
 	if err := cli.Get(ctx, types.NamespacedName{Name: params.environmentRequestName, Namespace: params.namespace}, &request); err != nil {
 		return err
 	}
-	return provider.Provision(ctx, logger, request, params.namespace)
+	return provider.Provision(ctx, logger, ProvisionConfig{
+		EnvironmentRequest: &request,
+		Namespace:          params.namespace,
+		MaximumAmount:      request.Spec.MaximumAmount,
+		MinimumAmount:      request.Spec.MinimumAmount,
+	})
 }
 
 // GetIUT gets an IUT resource by name from Kubernetes.
@@ -124,9 +138,26 @@ func GetIUT(ctx context.Context, name, namespace string) (*v1alpha2.Iut, error) 
 	return &iut, nil
 }
 
+// GetIUTs fetches all IUTs for an environmentrequest from Kubernetes.
+func GetIUTs(ctx context.Context, environmentRequestID, namespace string) (v1alpha2.IutList, error) {
+	var iuts v1alpha2.IutList
+	cli, err := kubernetesClient()
+	if err != nil {
+		return iuts, err
+	}
+	err = cli.List(
+		ctx,
+		&iuts,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"etos.eiffel-community.github.io/environment-request-id": environmentRequestID},
+	)
+	return iuts, err
+}
+
 // CreateIUT creates a new IUT resource in Kubernetes.
-// TODO: Allow inputs for the IutSpec
-func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequest, namespace string) error {
+//
+// The spec.ID, spec.Identity, and spec.ProviderID fields are automatically populated by this function. They will be overwritten if set.
+func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequest, namespace string, spec v1alpha2.IutSpec) error {
 	logger, _ := logr.FromContext(ctx)
 
 	logger.Info("Getting Kubernetes client")
@@ -147,9 +178,13 @@ func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequ
 	if environmentrequest.Spec.Identifier != "" {
 		labels["etos.eiffel-community.github.io/id"] = environmentrequest.Spec.Identifier
 	}
+
+	spec.ID = uuid.NewString()
+	spec.ProviderID = environmentrequest.Spec.Providers.IUT.ID
+	spec.Identity = environmentrequest.Spec.Identity
+
 	isController := false
 	blockOwnerDeletion := true
-	logger.Info("Creating IUT", "environmentrequest", environmentrequest.Spec.Name)
 	return cli.Create(ctx, &v1alpha2.Iut{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:       labels,
@@ -164,11 +199,7 @@ func CreateIUT(ctx context.Context, environmentrequest *v1alpha1.EnvironmentRequ
 				BlockOwnerDeletion: &blockOwnerDeletion,
 			}},
 		},
-		Spec: v1alpha2.IutSpec{
-			// ID:         uuid.NewString(),
-			ProviderID: environmentrequest.Spec.Providers.IUT.ID,
-			// Identity:   environmentrequest.Spec.Identity,
-		},
+		Spec: spec,
 	})
 }
 

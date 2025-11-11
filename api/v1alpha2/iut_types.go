@@ -17,13 +17,24 @@
 package v1alpha2
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // IutSpec defines the desired state of Iut
 type IutSpec struct {
+	// ID is the ID for the IUT. The ID is a UUID, any version, and regex matches that.
+	// +kubebuilder:validation:Pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	ID string `json:"id"`
+
+	// Identity is the PackageURL definition of the IUT.
+	Identity string `json:"identity"`
+
 	// ProviderID is the name of the Provider used to create this Iut.
 	ProviderID string `json:"provider_id"`
+
+	// ProviderData is specific data provider by the IUT providers
+	ProviderData *apiextensionsv1.JSON `json:"provider_data,omitempty"`
 }
 
 // IutStatus defines the observed state of Iut.

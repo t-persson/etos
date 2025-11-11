@@ -22,8 +22,40 @@ import (
 
 // ExecutionSpaceSpec defines the desired state of ExecutionSpace
 type ExecutionSpaceSpec struct {
+	// ID is the ID for the ExecutionSpace. The ID is a UUID, any version, and regex matches that.
+	// +kubebuilder:validation:Pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	ID string `json:"id"`
+
 	// ProviderID is the name of the Provider used to create this ExecutionSpace.
 	ProviderID string `json:"provider_id"`
+
+	// Instructions are the instructions for launching a TestRunner.
+	Instructions Instructions `json:"instructions"`
+
+	// Only used in ETOS v0. Request describes how to start up an execution space.
+	// +optional
+	Request *Request `json:"request,omitempty"`
+}
+
+// Instructions are the instructions for launching a TestRunner.
+type Instructions struct {
+	Environment map[string]string `json:"environment"`
+	// +kubebuilder:validation:Pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	Identifier string            `json:"identifier"`
+	Image      string            `json:"image"`
+	Parameters map[string]string `json:"parameters"`
+}
+
+// Request describes how to start up an execution space.
+type Request struct {
+	URL    string `json:"url,omitempty"`
+	Method string `json:"method,omitempty"`
+	// +optional
+	Data map[string]string `json:"json,omitempty"`
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
+	// +optional
+	Timeout int `json:"timeout,omitempty"`
 }
 
 // ExecutionSpaceStatus defines the observed state of ExecutionSpace.
