@@ -19,13 +19,10 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,6 +33,7 @@ import (
 	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/eiffel-community/etos/internal/controller/status"
+	"github.com/eiffel-community/etos/internal/release"
 )
 
 // LogAreaReconciler reconciles a LogArea object
@@ -220,10 +218,6 @@ func (r *LogAreaReconciler) reconcileLogAreaReleaser(ctx context.Context, logare
 
 // releaseJob is the job definition for a log area releaser.
 func (r LogAreaReconciler) releaseJob(ctx context.Context, obj client.Object) (*batchv1.Job, error) {
-	ttl := int32(300)
-	grace := int64(30)
-	backoff := int32(0)
-
 	logarea, ok := obj.(*etosv1alpha2.LogArea)
 	if !ok {
 		return nil, errors.New("object received from job manager is not a LogArea")
@@ -234,59 +228,7 @@ func (r LogAreaReconciler) releaseJob(ctx context.Context, obj client.Object) (*
 		return nil, err
 	}
 
-	jobSpec := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				"app.kubernetes.io/name":    "logarea-releaser",
-				"app.kubernetes.io/part-of": "etos",
-			},
-			Annotations: make(map[string]string),
-			Name:        logarea.Name,
-			Namespace:   logarea.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			TTLSecondsAfterFinished: &ttl,
-			BackoffLimit:            &backoff,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: logarea.Name,
-					Labels: map[string]string{
-						"app.kubernetes.io/name":    "logarea-releaser",
-						"app.kubernetes.io/part-of": "etos",
-					},
-				},
-				Spec: corev1.PodSpec{
-					TerminationGracePeriodSeconds: &grace,
-					ServiceAccountName:            "provider", // TODO: Wrong service account
-					RestartPolicy:                 "Never",
-					Containers: []corev1.Container{
-						{
-							Name:            logarea.Name,
-							Image:           image(provider),
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							// TODO: Verify these resourceclaims
-							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-								},
-								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-								},
-							},
-							Args: []string{
-								"-release",
-								"-nodelete", // The resource is already being deleted, no need to delete again.
-								fmt.Sprintf("-namespace=%s", logarea.GetNamespace()),
-								fmt.Sprintf("-log-area=%s", logarea.GetName()),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	jobSpec := release.LogAreaReleaser(logarea, image(provider), true)
 	return jobSpec, ctrl.SetControllerReference(logarea, jobSpec, r.Scheme)
 }
 

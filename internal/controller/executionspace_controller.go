@@ -19,13 +19,10 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,6 +33,7 @@ import (
 	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/eiffel-community/etos/internal/controller/status"
+	"github.com/eiffel-community/etos/internal/release"
 )
 
 // ExecutionSpaceReconciler reconciles a ExecutionSpace object
@@ -220,10 +218,6 @@ func (r *ExecutionSpaceReconciler) reconcileExecutionSpaceReleaser(ctx context.C
 
 // releaseJob is the job definition for an execution space releaser.
 func (r ExecutionSpaceReconciler) releaseJob(ctx context.Context, obj client.Object) (*batchv1.Job, error) {
-	ttl := int32(300)
-	grace := int64(30)
-	backoff := int32(0)
-
 	executionSpace, ok := obj.(*etosv1alpha2.ExecutionSpace)
 	if !ok {
 		return nil, errors.New("object received from job manager is not an ExecutionSpace")
@@ -234,59 +228,7 @@ func (r ExecutionSpaceReconciler) releaseJob(ctx context.Context, obj client.Obj
 		return nil, err
 	}
 
-	jobSpec := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				"app.kubernetes.io/name":    "execution-space-releaser",
-				"app.kubernetes.io/part-of": "etos",
-			},
-			Annotations: make(map[string]string),
-			Name:        executionSpace.Name,
-			Namespace:   executionSpace.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			TTLSecondsAfterFinished: &ttl,
-			BackoffLimit:            &backoff,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: executionSpace.Name,
-					Labels: map[string]string{
-						"app.kubernetes.io/name":    "execution-space-releaser",
-						"app.kubernetes.io/part-of": "etos",
-					},
-				},
-				Spec: corev1.PodSpec{
-					TerminationGracePeriodSeconds: &grace,
-					ServiceAccountName:            "provider", // TODO: Wrong service account
-					RestartPolicy:                 "Never",
-					Containers: []corev1.Container{
-						{
-							Name:            executionSpace.Name,
-							Image:           image(provider),
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							// TODO: Verify these resourceclaims
-							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-								},
-								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-								},
-							},
-							Args: []string{
-								"-release",
-								"-nodelete", // The resource is already being deleted, no need to delete again.
-								fmt.Sprintf("-namespace=%s", executionSpace.GetNamespace()),
-								fmt.Sprintf("-execution-space=%s", executionSpace.GetName()),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	jobSpec := release.ExecutionSpaceReleaser(executionSpace, image(provider), true)
 	return jobSpec, ctrl.SetControllerReference(executionSpace, jobSpec, r.Scheme)
 }
 
