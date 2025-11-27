@@ -26,3 +26,16 @@ jobs:
     steps:
       - name: Echo
         run: echo ${{ env.REGISTRY }}/${{ needs.apiImage.outputs.repository}}:${{ needs.apiImage.outputs.version }}
+
+      - uses: actions/checkout@v4
+      - name: Update manifests
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          branch: main
+          commitChange: false
+          valueFile: default_images_configmap.yaml
+          message: Updating images
+          changes: |
+            {
+              "data.api": "${{ env.REGISTRY }}/${{ needs.apiImage.outputs.repository }}/${{ needs.apiImage.outputs.version }}"
+            }
