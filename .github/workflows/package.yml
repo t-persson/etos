@@ -22,7 +22,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.API_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.API_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -32,7 +32,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/{{ env.SSE_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.SSE_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -42,7 +42,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/{{ env.LOGAREA_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.LOGAREA_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -52,7 +52,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -62,7 +62,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -72,7 +72,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
@@ -82,13 +82,13 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }} | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
   doEcho:
     runs-on: ubuntu-latest
-    needs: [apiImage]
+    needs: [apiImage, sseImage, logareaImage, environmentProviderImage, suiteRunnerImage, logListenerImage, suiteStarterImage]
     steps:
       - uses: actions/checkout@v4
       - name: Update manifests
