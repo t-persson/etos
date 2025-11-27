@@ -9,8 +9,20 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  get-package-version:
+  apiImage:
     runs-on: ubuntu-latest
     steps:
-      - name: Skopeo
-        run: skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq ".Tags | last"
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq ".Tags | last"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        outputs:
+          repository: eiffel-community/etos-api
+          version: ${{ steps.getVersion.outputs.version }}
+  doEcho:
+    runs-on: ubuntu-latest
+    needs: [apiImage]
+    steps:
+      - name: Echo
+        run: echo ${{ env.REGISTRY }}/${{ needs.apiImage.outputs.repository}}:${{ needs.apiImage.outputs.version }}
