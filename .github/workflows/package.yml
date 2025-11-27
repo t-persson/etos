@@ -21,4 +21,4 @@ jobs:
       - name: Echo
         run: env | sort
       - name: Skopeo
-        run: skopeo list-tags --registry-token ${{ secrets.GITHUB_TOKEN }} docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api
+        run: skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api
