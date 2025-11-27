@@ -46,7 +46,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       version: ${{ steps.getVersion.outputs.version }}
-  environmenProviderImage:
+  environmentProviderImage:
     runs-on: ubuntu-latest
     steps:
       - name: Get version
