@@ -15,7 +15,7 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq ".Tags | last")
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
       repository: eiffel-community/etos-api
