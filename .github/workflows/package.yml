@@ -12,13 +12,5 @@ jobs:
   get-package-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Echo
-        run: env | sort
       - name: Skopeo
-        run: skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api
+        run: skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq ".Tags | last"
