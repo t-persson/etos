@@ -7,6 +7,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  API_REPOSITORY: eiffel-community/etos-api
+  SSE_REPOSITORY: eiffel-community/etos-sse
+  LOGAREA_REPOSITORY: eiffel-community/etos-logarea
+  ENVIRONMENT_PROVIDER_REPOSITORY: eiffel-community/etos-environment-provider
+  SUITE_RUNNER_REPOSITORY: eiffel-community/etos-suite-runner
+  LOG_LISTENER_REPOSITORY: eiffel-community/etos-log-listener
+  SUITE_STARTER_REPOSITORY: eiffel-community/etos-suite-starter
 
 jobs:
   apiImage:
@@ -15,18 +22,74 @@ jobs:
       - name: Get version
         id: getVersion
         run: |
-          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq -r ".Tags | last")
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.API_REPOSITORY }} | jq -r ".Tags | last")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
     outputs:
-      repository: eiffel-community/etos-api
+      version: ${{ steps.getVersion.outputs.version }}
+  sseImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/{{ env.SSE_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.getVersion.outputs.version }}
+  logareaImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/{{ env.LOGAREA_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.getVersion.outputs.version }}
+  environmenProviderImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.getVersion.outputs.version }}
+  suiteRunnerImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.getVersion.outputs.version }}
+  logListenerImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.getVersion.outputs.version }}
+  suiteStarterImage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: getVersion
+        run: |
+          VERSION=$(skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }} | jq -r ".Tags | last")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
       version: ${{ steps.getVersion.outputs.version }}
   doEcho:
     runs-on: ubuntu-latest
     needs: [apiImage]
     steps:
-      - name: Echo
-        run: echo ${{ env.REGISTRY }}/${{ needs.apiImage.outputs.repository}}:${{ needs.apiImage.outputs.version }}
-
       - uses: actions/checkout@v4
       - name: Update manifests
         uses: fjogeleit/yaml-update-action@main
@@ -37,5 +100,11 @@ jobs:
           message: Updating images
           changes: |
             {
-              "data.api": "${{ env.REGISTRY }}/${{ needs.apiImage.outputs.repository }}/${{ needs.apiImage.outputs.version }}"
+              "data.api": "${{ env.REGISTRY }}/${{ env.API_REPOSITORY }}/${{ needs.apiImage.outputs.version }}",
+              "data.sse": "${{ env.REGISTRY }}/${{ env.SSE_REPOSITORY }}/${{ needs.sseImage.outputs.version }}",
+              "data.logarea": "${{ env.REGISTRY }}/${{ env.LOGAREA_REPOSITORY }}/${{ needs.logareaImage.outputs.version }}",
+              "data.environmentProvider": "${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }}/${{ needs.environmentProviderImage.outputs.version }}",
+              "data.suiteRunner": "${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }}/${{ needs.suiteRunnerImage.outputs.version }}",
+              "data.logListener": "${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }}/${{ needs.logListenerImage.outputs.version }}",
+              "data.suiteStarter": "${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }}/${{ needs.suiteStarterImage.outputs.version }}"
             }
