@@ -1,6 +1,8 @@
 name: blipblop
 
 on:
+  push:
+    branch: master
   workflow_dispatch:
 
 env:
