@@ -100,11 +100,11 @@ jobs:
           message: Updating images
           changes: |
             {
-              "data.api": "${{ env.REGISTRY }}/${{ env.API_REPOSITORY }}/${{ needs.apiImage.outputs.version }}",
-              "data.sse": "${{ env.REGISTRY }}/${{ env.SSE_REPOSITORY }}/${{ needs.sseImage.outputs.version }}",
-              "data.logarea": "${{ env.REGISTRY }}/${{ env.LOGAREA_REPOSITORY }}/${{ needs.logareaImage.outputs.version }}",
-              "data.environmentProvider": "${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }}/${{ needs.environmentProviderImage.outputs.version }}",
-              "data.suiteRunner": "${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }}/${{ needs.suiteRunnerImage.outputs.version }}",
-              "data.logListener": "${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }}/${{ needs.logListenerImage.outputs.version }}",
-              "data.suiteStarter": "${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }}/${{ needs.suiteStarterImage.outputs.version }}"
+              "data.api": "${{ env.REGISTRY }}/${{ env.API_REPOSITORY }}:${{ needs.apiImage.outputs.version }}",
+              "data.sse": "${{ env.REGISTRY }}/${{ env.SSE_REPOSITORY }}:${{ needs.sseImage.outputs.version }}",
+              "data.logarea": "${{ env.REGISTRY }}/${{ env.LOGAREA_REPOSITORY }}:${{ needs.logareaImage.outputs.version }}",
+              "data.environmentProvider": "${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }}:${{ needs.environmentProviderImage.outputs.version }}",
+              "data.suiteRunner": "${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }}:${{ needs.suiteRunnerImage.outputs.version }}",
+              "data.logListener": "${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }}:${{ needs.logListenerImage.outputs.version }}",
+              "data.suiteStarter": "${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }}:${{ needs.suiteStarterImage.outputs.version }}"
             }
