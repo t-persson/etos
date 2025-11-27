@@ -20,5 +20,5 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Echo
         run: env | sort
-      - name: Curl
-        run: curl "https://ghcr.io/v2/eiffel-community/etos-api/tags/list"
+      - name: Skopeo
+        run: skopeo list-tags --registry-token ${GITHUB_TOKEN} docker://ghcr.io/${env.REGISTRY}/eiffel-community/etos-api
