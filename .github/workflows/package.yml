@@ -131,6 +131,6 @@ jobs:
              "data.environmentProvider": "${{ env.REGISTRY }}/${{ env.ENVIRONMENT_PROVIDER_REPOSITORY }}:${{ needs.environmentProviderImage.outputs.version }}",
              "data.suiteRunner": "${{ env.REGISTRY }}/${{ env.SUITE_RUNNER_REPOSITORY }}:${{ needs.suiteRunnerImage.outputs.version }}",
              "data.logListener": "${{ env.REGISTRY }}/${{ env.LOG_LISTENER_REPOSITORY }}:${{ needs.logListenerImage.outputs.version }}",
-             "data.suiteStarter": "${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }}:${{ needs.suiteStarterImage.outputs.version }}"
+             "data.suiteStarter": "${{ env.REGISTRY }}/${{ env.SUITE_STARTER_REPOSITORY }}:${{ needs.suiteStarterImage.outputs.version }}",
              "data.testRunner": "${{ needs.testRunnerVersion.outputs.version }}"
            }
