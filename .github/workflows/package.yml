@@ -94,7 +94,7 @@ jobs:
       - name: Update manifests
         uses: fjogeleit/yaml-update-action@main
         with:
-          branch: main
+          branch: master
           commitChange: true
           valueFile: default_images_configmap.yaml
           message: Updating images
