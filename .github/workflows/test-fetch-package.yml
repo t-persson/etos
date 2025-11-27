@@ -1,4 +1,4 @@
-name: Thingymabob
+name: blipblop
 
 on:
   workflow_dispatch:
