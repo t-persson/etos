@@ -17,9 +17,9 @@ jobs:
         run: |
           VERSION=skopeo list-tags docker://ghcr.io/${{ env.REGISTRY }}/eiffel-community/etos-api | jq ".Tags | last"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-        outputs:
-          repository: eiffel-community/etos-api
-          version: ${{ steps.getVersion.outputs.version }}
+    outputs:
+      repository: eiffel-community/etos-api
+      version: ${{ steps.getVersion.outputs.version }}
   doEcho:
     runs-on: ubuntu-latest
     needs: [apiImage]
