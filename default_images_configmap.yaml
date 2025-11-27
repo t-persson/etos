@@ -10,4 +10,4 @@ data:
   suiteRunner: ghcr.io/eiffel-community/etos-suite-runner:77de800f
   logListener: ghcr.io/eiffel-community/etos-log-listener:77de800f
   suiteStarter: ghcr.io/eiffel-community/etos-suite-starter:6b1146e1
-  testRunner: 3.6.0
+  testRunner: 3.7.5
