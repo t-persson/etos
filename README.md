@@ -14,7 +14,7 @@ Let\'s bring back control to the testers.
 With ETOS we define how to run tests using recipes and we define what to
 run with collections of recipes.
 
-| Test Engineer      | Test Automation Engineer | System Engineer |
+| [Test Engineer]()      | [Test Automation Engineer]() | [System Engineer]() |
 | ------------------ | ------------------------ | --------------- |
 | Create collections | Create recipes           | Deploy ETOS     |
 | Analyze results    | Create tests             | Infrastructure  |
