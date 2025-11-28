@@ -1,6 +1,4 @@
----
-title: Release Process
----
+# Release Process
 
 The ETOS release process is as follows.
 

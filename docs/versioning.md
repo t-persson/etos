@@ -1,6 +1,4 @@
----
-title: Versioning rules
----
+# Versioning rules
 
 ETOS uses semantic versioning in the form of \"MAJOR.MINOR.PATCH\"
 

@@ -1,6 +1,4 @@
----
-title: Local dev environment
----
+# Local dev environment
 
 To deploy a local dev environment you first have to install kind and
 create a cluster.
@@ -26,7 +24,7 @@ immediately.
 
     kubectl create -f config/samples/etos_v1alpha1_testrun.yaml
 
-# Verify changes
+## Verify changes
 
 With a running local deployment of ETOS you might want to test other
 versions of certain ETOS services. These services has to be built using
