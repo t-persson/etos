@@ -1,6 +1,8 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/eiffel-community/etos-controller:latest
 
+API_VERSIONS := $(wildcard api/*)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -161,6 +163,10 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 split-installer: build-installer
 	python scripts/split_installer.py dist/install.yaml
 
+.PHONY: docs
+docs: build-installer
+	$(CRDOC) --resources dist/install.yaml -o docs/api.md
+
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -198,6 +204,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+CRDOC = $(LOCALBIN)/crdoc
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -207,6 +214,7 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v1.63.4
+CRDOC_VERSION ?= v0.6.4
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -235,6 +243,11 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: crdoc
+crdoc: $(CRDOC)
+$(CRDOC): $(LOCALBIN)
+	$(call go-install-tool,$(CRDOC),fybrik.io/crdoc,$(CRDOC_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
