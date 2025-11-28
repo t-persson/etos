@@ -1,74 +1,16 @@
----
-title: SSE protocol
----
+# SSE protocol
 
 ETOS communicates to clients using SSE (server sent events). For now
 ETOS only sends log messages using the protocol but we are adding more
 data about testruns into the protocol.
 
-  ----------------------------------------------------------------------------------
-  Name              Why               Example                      State
-  ----------------- ----------------- ---------------------------- -----------------
-  Ping              Keep the          {id: None, event: Ping,      Implemented
-                    connection alive  data: \"\"}                  
-
-  Shutdown          Server wants the  {id: None, event: Shutdown,  Implemented
-                    client to shut    data: \"ESR has shut down\"} 
-                    down the                                       
-                    connection                                     
-
-  NotFound          The server cannot {id: None, event: NotFound,  Suggested
-                    find the ESR      data: \"ESR not found\"}     
-                    instance, retry                                
-                    after a while                                  
-
-  Error             The server got an {id: None, event: Error,     Suggested
-                    error. Retry may  data: \'{\"retry\": bool,    
-                    be possible       \"reason\": \"Some sort of   
-                                      error\"}}                    
-
-  Message           A user log        {id: 1, event: message,      Implemented
-                    message from ETOS data: \"{\'message\': \'a    
-                                      message\', \'@timestamp\':   
-                                      \'%Y-%m-%dT%H:%M:%S.%fZ\',   
-                                      \'levelname\': \'INFO\',     
-                                      \'name\': \'ESR\'}\"}        
-
-  Artifact          An artifact to    {id: 1, event: Artifact,     Implemented
-                    download          data: \"{\'url\':            
-                                      \'<http://download.me>\',    
-                                      \'name\': \'filename.txt\',  
-                                      \'directory\':               
-                                      \'MyTest_SubSuite_0\',       
-                                      \'checksums\': {\'SHA-224\': 
-                                      \'\<hash\>\', \'SHA-256\':   
-                                      \'\<hash\>\', \'SHA-384\':   
-                                      \'\<hash\>\', \'SHA-512\':   
-                                      \'\<hash\>\',                
-                                      \'SHA-512/224\':             
-                                      \'\<hash\>\',                
-                                      \'SHA-512/256\':             
-                                      \'\<hash\>\'}}\"}            
-
-  Report            A report to       {id: 1, event: Report, data: Implemented
-                    download          \"{\'url\':                  
-                                      \'<http://download.me>\',    
-                                      \'name\': \'filename.txt\',  
-                                      \'checksums\': {\'SHA-224\': 
-                                      \'\<hash\>\', \'SHA-256\':   
-                                      \'\<hash\>\', \'SHA-384\':   
-                                      \'\<hash\>\', \'SHA-512\':   
-                                      \'\<hash\>\',                
-                                      \'SHA-512/224\':             
-                                      \'\<hash\>\',                
-                                      \'SHA-512/256\':             
-                                      \'\<hash\>\'}}\"}            
-
-  TestCase          A test case       {id: 1, event: TestCase,     Suggested
-                    execution         data: \"{\'id\': \'uuid\',   
-                                      \'triggered\': True,         
-                                      \'started\': True,           
-                                      \'finished\': False}\"}      
-  ----------------------------------------------------------------------------------
-
-  : SSE Protocol
+| Name         | Why                | Example                    | State         |
+| ------------ | ------------------------------------------------------------ | -------------------------- | ------------- |
+| Ping         | Keep the connection alive                                    | {id: None, event: Ping, data: ""} | Implemented |
+| Shutdown     | Server wants the client to shut down the connection          | {id: None, event: Shutdown, data: "ESR has shut down"} | Implemented |
+| NotFound     | The server cannot find the ESR instance, retry after a while | {id: None, event: NotFound, data: "ESR not found"} | Suggested |
+| Error        | The server got an error. Retry may be possible               | {id: None, event: Error, data: '{"retry": bool, "reason": "Some sort of error"}} | Suggested |
+| Message      | A user log message from ETOS                                 | {id: 1, event: message, data: "{'message': 'a message', '@timestamp': '%Y-%m-%dT%H:%M:%S.%fZ', 'levelname': 'INFO', 'name': 'ESR'}"} | Implemented |
+| Artifact     | An artifact to download                                      | {id: 1, event: Artifact, data: "{'url': 'http://download.me', 'name': 'filename.txt', 'directory': 'MyTest_SubSuite_0', 'checksums': {'SHA-224': '<hash>', 'SHA-256': '<hash>', 'SHA-384': '<hash>', 'SHA-512': '<hash>', 'SHA-512/224': '<hash>', 'SHA-512/256': '<hash>'}}"} | Implemented |
+| Report       | A report to download                                         | {id: 1, event: Report, data: "{'url': 'http://download.me', 'name': 'filename.txt', 'checksums': {'SHA-224': '<hash>', 'SHA-256': '<hash>', 'SHA-384': '<hash>', 'SHA-512': '<hash>', 'SHA-512/224': '<hash>', 'SHA-512/256': '<hash>'}}"} | Implemented |
+| TestCase     | A test case execution                                         h| {id: 1, event: TestCase, data: "{'id': 'uuid', 'triggered': True, 'started': True, 'finished': False}"} | Suggested |
