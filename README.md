@@ -1,6 +1,6 @@
-![ETOS](images/etos-logo.png){width="350px"}
+![ETOS
 
-[![image](https://img.shields.io/badge/Stage-Sandbox-yellow.svg)](https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox)
+<img src="https://img.shields.io/badge/Stage-Sandbox-yellow.svg" href="https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox" alt="Stage sandbox" width="350px">
 
 # ETOS
 
