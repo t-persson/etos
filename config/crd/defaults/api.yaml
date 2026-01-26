@@ -1,15 +1,19 @@
-source:
-  kind: ConfigMap
-  version: v1
-  name: default-etos-service-versions
-  fieldPath: data.api
-targets:
-  - select:
-      kind: CustomResourceDefinition
-      group: apiextensions.k8s.io
-      version: v1
-      name: clusters.etos.eiffel-community.github.io
-    fieldPaths:
-      - .spec.versions.0.schema.openAPIV3Schema.properties.spec.properties.etos.properties.api.properties.image.default
-    options:
-      create: true
+- op: replace
+  path: /spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/etos/properties/api/properties/image/default
+  value: "ghcr.io/eiffel-community/etos-api:bengt"
+
+# source:
+#   # kind: ConfigMap
+#   # version: v1
+#   # name: default-etos-service-versions
+#   # fieldPath: data.api
+# targets:
+#   - select:
+#       kind: CustomResourceDefinition
+#       group: apiextensions.k8s.io
+#       version: v1
+#       name: clusters.etos.eiffel-community.github.io
+#     fieldPaths:
+#       - .spec.versions.0.schema.openAPIV3Schema.properties.spec.properties.etos.properties.api.properties.image.default
+#     options:
+#       create: true

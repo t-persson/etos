@@ -17,9 +17,14 @@ patches:
 - path: patches/webhook_in_testruns.yaml
 - path: patches/webhook_in_environmentrequests.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
+- path: defaults/api.yaml
+  target:
+    kind: CustomResourceDefinition
+    group: apiextensions.k8s.io
+    version: v1
+    name: clusters.etos.eiffel-community.github.io
 
 replacements:
-- path: defaults/api.yaml
 - path: defaults/sse.yaml
 - path: defaults/logarea.yaml
 - path: defaults/environment_provider.yaml
