@@ -110,7 +110,7 @@ jobs:
        with:
          branch: main
          commitChange: true
-         valueFile: config/default/default_images_configmap.yaml
+         valueFile: config/crd/default_images_configmap.yaml
          message: |
           Updating default ETOS versions
             - ETOS API: ${{ env.REGISTRY }}/${{ env.API_REPOSITORY }}:${{ needs.apiImage.outputs.version }}

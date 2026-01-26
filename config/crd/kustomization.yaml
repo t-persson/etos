@@ -8,6 +8,7 @@ resources:
 - bases/etos.eiffel-community.github.io_clusters.yaml
 - bases/etos.eiffel-community.github.io_environmentrequests.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
+- default_images_configmap.yaml
 
 patches:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
@@ -16,6 +17,18 @@ patches:
 - path: patches/webhook_in_testruns.yaml
 - path: patches/webhook_in_environmentrequests.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
+
+replacements:
+- path: defaults/api.yaml
+- path: defaults/sse.yaml
+- path: defaults/logarea.yaml
+- path: defaults/environment_provider.yaml
+- path: defaults/suite_runner.yaml
+- path: defaults/log_listener.yaml
+- path: defaults/suite_starter.yaml
+- path: defaults/test_runner.yaml
+- path: defaults/event_repository_api.yaml
+- path: defaults/event_repository_storage.yaml
 
 # [WEBHOOK] To enable webhook, uncomment the following section
 # the following config is for teaching kustomize how to do kustomization for CRDs.
