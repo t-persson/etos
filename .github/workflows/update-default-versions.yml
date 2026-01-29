@@ -110,10 +110,10 @@ jobs:
      - name: Update manifests
        uses: fjogeleit/yaml-update-action@main
        with:
-         branch: main
+         branch: test-workflow
          commitChange: true
          message: |
-          Updating default ETOS versions [skip ci]
+          Updating default ETOS versions
             - ETOS API: ${{ env.REGISTRY }}/${{ env.API_REPOSITORY }}:${{ needs.apiImage.outputs.version }}
             - ETOS SSE: ${{ env.REGISTRY }}/${{ env.SSE_REPOSITORY }}:${{ needs.sseImage.outputs.version }}
             - ETOS LogArea: ${{ env.REGISTRY }}/${{ env.LOGAREA_REPOSITORY }}:${{ needs.logareaImage.outputs.version }}
