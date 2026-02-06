@@ -15,8 +15,7 @@
    limitations under the License.
 --->
 
-<img src="./images/logo.png" alt="ETOS" width="350"/>
-[![Sandbox badge](https://img.shields.io/badge/Stage-Sandbox-yellow)](https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox)
+<img src="images/etos-logo.png" alt="ETOS" width="350"/>
 
 # ETOS
 
@@ -26,7 +25,7 @@ The idea of having a system dictate what and how to run is finished. Let's bring
 
 With ETOS we define how to run tests using recipes and we define what to run with collections of recipes.
 
-| [Test Engineer](roles/test_engineer.md) | [Test Automation Engineer](roles/test_automation_engineer.md) | [System Engineer](roles/system_engineer) |
+| [Test Engineer](roles/test_engineer.md) | [Test Automation Engineer](roles/test_automation_engineer.md) | [System Engineer](roles/system_engineer.md) |
 | ------------- | ------------- | ------------- |
 | Create collections | Create recipes | Deploy ETOS |
 | Analyze results | Create tests | Infrastructure |
@@ -37,94 +36,23 @@ You can also mix test suites. For instance, let's say you want to run a "go" uni
 
 This is the strength of ETOS. Relying on the humans to decide what to run, how to run and where to run.
 
-ETOS is a collection of multiple services working together. This repository is a facilitator of versioning, Helm charts and documentation.
-The services are located in these repositories.
-
-- [ETOS Client](./docs/services/etos_client.md)
-- [ETOS API](./docs/services/etos_api.md)
-- [ETOS Suite Starter](./docs/services/etos_suite_starter.md)
-- [ETOS Suite Runner](./docs/services/etos_suite_runner.md)
-- [ETOS Test Runner](./docs/services/etos_test_runner.md)
-- [ETOS Environment Provider](./docs/services/etos_environment_provider.md)
-- [ETOS Library](./docs/services/etos_library.md)
-- [ETOS Test Runner Containers](./docs/services/etos_test_runner_containers.md)
+ETOS is a collection of multiple services working together, all bound together by a Kubernetes controller.
 
 ## Features
 
-- Generic test suite execution based solely on JSON.
-- Mix and match test suites, regardless of programming language.
-- Separation of concerns between testers, test automation engineers and system engineers.
-- Eiffel protocol implementation.
+### Generic test suite execution based solely on JSON.
 
+A recipe is a JSON file describing how to run a test suite. It contains all the information needed to run the test suite, such as the testrunner to use, the parameters to pass to the testrunner, and any other information needed to run the test suite.
 
-## Installation
+### Mix and match test suites, regardless of programming language.
 
-### Requirements
+ETOS does not care about the programming language of the test suite. It only cares about the recipe, which is a JSON file describing how to run the test suite. This means that you can run any test suite, as long as you have a recipe for it and a testrunner that can execute it.
 
-In order to install ETOS, you need to meet the following requirements.
+### Separation of concerns between testers, test automation engineers and system engineers.
 
-- An up and running kubernetes cluster (`<https://kubernetes.io/>`_)
-- Helm version 3.x installed (`<https://helm.sh/>`_)
+ETOS separates the concerns of testers, test automation engineers and system engineers. 
+Testers are responsible for creating collections of recipes, test automation engineers are responsible for creating the recipes and tests, and system engineers are responsible for deploying ETOS and maintaining the infrastructure.
 
+### Eiffel protocol implementation.
 
-### Installation Steps
-
-1. First we need to add the Helm repository where the ETOS Helm charts are stored
-
-```sh
-helm repo add Eiffel registry.nordix.org/eiffel
-```
-
-2. Then simply install ETOS using Helm
-
-```sh
-helm install <name of the ETOS deployments> eiffel/etos --namespace <your kubernetes namespace>
-```
-
-## Deployment Configuration
-
-Following the installation step will give you a default configured ETOS deployment. Chances are that the default deployment configuration of ETOS will not work for your Infrastructure.
-To tailor the deployment to your specific infrastructure you need to create a configuration file and tell Helm to use that file when installing ETOS.
-
-Here is an example of a standard ETOS configuration file that should get most configurations up and running.
-
-```yaml
-global:
-  # This is the URL to the Eiffel Graphql API
-  graphqlServerUrl: http://eiffel-graphql-api.my.cluster-url.com
-  # This is the URL where the deployed ETOS Environment Provider will be available
-  environmentProviderUrl: http://environment-provider.my.cluster-url.com
-  # This is the URL where the deployed ETOS API will be available
-  etosApiUrl: http://etos-api.my.cluster-url.com
-
-suite-starter:
-  rabbitMQ:
-    # this is the message queue where suite starter listens for Eiffel
-    queue_name: suite_starter.queue
-
-# This is the configuration that should match your rabbitMQ deployment
-# ETOS needs a rabbitMQ service to be able to subscribe and publish Eiffel events
-rabbitmqHost: dev-rabbitmq.myhost.com
-rabbitmqExchange: my.eiffel.exchange
-rabbitmqPort: "5671"
-rabbitmqVhost: myvhost
-rabbitMQ:
-  username: rabbit_user
-  password: rabbit_password
-```
-
-
-## Contribute
-
-Please write issues in the relevant repositories for where you found the issue. \
-If you do not know which repository to write the issue for, feel free to write it here and it will be moved. \
-Documentation issues are reported here.
-
-- Issue Tracker: https://github.com/eiffel-community/etos/issues
-- Source Code: https://github.com/eiffel-community/etos
-
-
-## Support
-
-If you are having issues, please let us know.
-There is a mailing list at: etos-maintainers@googlegroups.com or just write an Issue.
+ETOS implements the Eiffel protocol, which is a protocol for technology agnostic machine-to-machine communication in continuous integration and delivery pipelines, aimed at securing scalability, flexibility and traceability. Eiffel is based on the concept of decentralized real time messaging, both to drive the continuous integration and delivery system and to document it.

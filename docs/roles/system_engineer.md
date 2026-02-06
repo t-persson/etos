@@ -1,25 +1,26 @@
+<!---
+   Copyright Axis Communications AB
+   For a full list of individual contributors, please see the commit history.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+--->
 # System Engineer
 
-The system engineers role is to maintain the system and to create provider instructions.
+The system engineers role is to deploy ETOS and maintain the infrastructure that ETOS relies on.
 
 ## Responsibilities of a system engineer
 
-- [ETOS API](../services/etos_api.md)
-- [ETOS Suite Starter](../services/etos_suite_starter.md)
-- [ETOS Suite Runner](../services/etos_suite_runner.md)
-- [ETOS Environment Provider](../services/etos_environment_provider.md)
-  - Registering providers
-- [ETOS Test Runner](../services/etos_test_runner.md)
-- Infrastructure
+- Deploying ETOS
+- Maintaining the infrastructure that ETOS relies on
 
-  - [Eiffel GraphQL API](https://eiffel-graphql-api.readthedocs.io)
-  - [RabbitMQ](https://www.rabbitmq.com/)
-  - Execution spaces
-    - [Jenkins](https://www.jenkins.io/)
-    - [Kubernetes](https://kubernetes.io/)
-    - etc
-  - Log areas
-    - [JFrog Artifactory](https://jfrog.com/artifactory/)
-    - etc
-
-This documentation is unfinished.
+TODO: Add more
