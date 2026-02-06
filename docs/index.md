@@ -62,7 +62,7 @@ ETOS implements the Eiffel protocol, which is a protocol for technology agnostic
 ### Running tests with ETOS
 Target audience: test engineers and test automation engineers.
 
-[Running ETOS](getting_started/index.md)
+[Getting started guide](getting_started/index.md)
 
 ### Installing ETOS
 Target audience: system engineers.
