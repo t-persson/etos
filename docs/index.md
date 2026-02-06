@@ -56,3 +56,15 @@ Testers are responsible for creating collections of recipes, test automation eng
 ### Eiffel protocol implementation.
 
 ETOS implements the Eiffel protocol, which is a protocol for technology agnostic machine-to-machine communication in continuous integration and delivery pipelines, aimed at securing scalability, flexibility and traceability. Eiffel is based on the concept of decentralized real time messaging, both to drive the continuous integration and delivery system and to document it.
+
+## Getting Started
+
+### Running tests with ETOS
+Target audience: test engineers and test automation engineers.
+
+[Running ETOS](getting_started/index.md)
+
+### Installing ETOS
+Target audience: system engineers.
+
+[Installing ETOS](getting_started/installation.md)
