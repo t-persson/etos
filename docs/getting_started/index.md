@@ -80,4 +80,4 @@ This command will start a testrun in ETOS using the recipe collection defined in
 
 After the testrun has finished you will get a quick summary of the results in the terminal. However if tests have failed, you will need to check the reports from your tests in the `reports` directory of the testrun.
 
-Congratulations! You have successfully started a testrun in ETOS and checked the results. For more information on how to use ETOS, please see the [documentation](index.md).
+Congratulations! You have successfully started a testrun in ETOS and checked the results. For more information on how to use ETOS, please see the [documentation](../index.md).
