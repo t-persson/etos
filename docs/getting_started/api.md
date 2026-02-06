@@ -29,7 +29,7 @@ Please see the [getting started guide](index.md) for more information on how to 
 
 ## Starting a testrun ETOS
 
-The V0 API documenation is available in the https://etos-api-instance/api/v0/docs/.
+The V0 API documenation is available in the https://etos-api-instance/api/v0/docs/. \
 The V1Alpha API documenation is available in the https://etos-api-instance/api/v1alpha/docs/.
 
 The v1alpha API and the v0 API are the same in terms of parameters and response. Pick any of the two to start a testrun.
@@ -45,7 +45,7 @@ The v1alpha API and the v0 API are the same in terms of parameters and response.
 
 ### Example
 
-V0 URL: `https://etos-api-instance/api/v0/etos`
+V0 URL: `https://etos-api-instance/api/v0/etos` \
 V1Alpha URL: `https://etos-api-instance/api/v1alpha/testrun`
 
 ```bash

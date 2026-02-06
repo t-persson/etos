@@ -18,8 +18,8 @@
 
 This guide will focus on starting testruns in ETOS using the ETOS client. The ETOS client is the recommended way to start testruns in ETOS, as it provides a simple and easy-to-use interface.
 
-If you are interested in installing ETOS, please see the [installation guide](installation.md) instead.
-If you want to start testruns using the ETOS API, please see the [API documentation](api.md).
+If you are interested in installing ETOS, please see the [installation guide](installation.md) instead. \
+If you want to start testruns using the ETOS API, please see the [API documentation](api.md). \
 If you want to start testruns directly in Kubernetes, please see the [TestRun documentation](testrun.md).
 
 ## Prerequisites
@@ -44,7 +44,7 @@ A recipe collection is a collection of recipes that defines what to run in a tes
         "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "testCase": {
           "id": "name_of_testcase",
-          "tracker": "Name of the test case tracker (e.g. Jira, TestRail, etc.)"
+          "tracker": "Name of the test case tracker"
           "url": "https://tracker.com/testcase/name_of_testcase"
         },
         "constraints": [
