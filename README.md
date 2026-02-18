@@ -15,6 +15,7 @@
    limitations under the License.
 --->
 
+sup
 <img src="./docs/images/etos-logo.png" alt="ETOS" width="350"/>
 
 [![Sandbox badge](https://img.shields.io/badge/Stage-Sandbox-yellow)](https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox)
