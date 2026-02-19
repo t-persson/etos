@@ -10,8 +10,8 @@ jobs:
         with:
           base: master
           # Only include that were automatically created by ETOS
-          # include-labels: |
-          #   automated-pr
+          include-labels: |
+            automated-pr
           # Only include PRs created in this repository, not in forks
           # head: 'eiffel-community:*'
           # head: 'etos-pull-request-permissions:*'
