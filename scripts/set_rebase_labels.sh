@@ -1,5 +1,13 @@
+#!/bin/bash
+
 REPOSITORY="t-persson/etos"
 LABEL="automated-rebase"
+
+if [ ! -x "$(command -v gh)" ]; then
+  echo "Error: gh CLI is not installed." >&2
+  exit 1
+fi
+
 JSON=$(gh pr status -R "$REPOSITORY" -c --json mergeable --json number --jq ".createdBy")
 
 echo "$JSON" | jq -c '.[]' | while read i; do
