@@ -2,6 +2,7 @@ name: Automatic Rebase
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 jobs:
   rebase:
     runs-on: ubuntu-latest
@@ -9,20 +10,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Set rebase labels
-        run: bash ${GITHUB_WORKSPACE}/scripts/set_rebase_labels.sh
+        run: python ${GITHUB_WORKSPACE}/scripts/rebase_labels.py
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: peter-evans/rebase@v4
-        with:
-          base: master
-          # Only include that were automatically created by ETOS
-          include-labels: |
-            automated-rebase
-          # automated-pr
-          # Only include PRs created in this repository, not in forks
-          # head: 'eiffel-community:*'
-          # head: 'etos-pull-request-permissions:*'
-          head: 't-persson:*'
-          # Since we are only targeting PRs created by ETOS, we can safely use the "theirs" strategy to resolve any conflicts that may arise during the rebase.
-          # This means that if there are any conflicts, the changes from the PR will be kept, and the changes from the base branch (main) will be discarded.
-          rebase-options: '-Xtheirs'
+      # - name: Set rebase labels
+      #   run: bash ${GITHUB_WORKSPACE}/scripts/set_rebase_labels.sh
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      # - uses: peter-evans/rebase@v4
+      #   with:
+      #     base: master
+      #     # Only include that were automatically created by ETOS
+      #     include-labels: |
+      #       automated-rebase
+      #     # automated-pr
+      #     # Only include PRs created in this repository, not in forks
+      #     # head: 'eiffel-community:*'
+      #     # head: 'etos-pull-request-permissions:*'
+      #     head: 't-persson:*'
+      #     # Since we are only targeting PRs created by ETOS, we can safely use the "theirs" strategy to resolve any conflicts that may arise during the rebase.
+      #     # This means that if there are any conflicts, the changes from the PR will be kept, and the changes from the base branch (main) will be discarded.
+      #     rebase-options: '-Xtheirs'
