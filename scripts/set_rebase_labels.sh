@@ -9,30 +9,25 @@ if [ ! -x "$(command -v gh)" ]; then
   exit 1
 fi
 
-OUTPUT=$(gh pr status -R "$REPOSITORY")
-echo "$OUTPUT"
-# JSON=$(gh pr status -R "$REPOSITORY" -c --json mergeable --json number --jq ".createdBy")
-
-# echo "$JSON" | jq -c '.[]' | while read i; do
-#   mergeable=$(echo $i | jq -r '.mergeable')
-#   number=$(echo $i | jq -r '.number')
-#   # Check if the "$LABEL" label is already present
-#   has_label=$(gh pr view -R "$REPOSITORY" "$number" --json labels --jq '.labels | map(select(.name == "$LABEL")) | length > 0')
-#   if [ "$mergeable" = "CONFLICTING" ]; then
-#     if [ "$has_label" = "true" ]; then
-#       echo "PR #$number is not mergeable but has the '$LABEL' label."
-#       success=$(gh pr edit -R "$REPOSITORY" --remove-label "$LABEL" "$number")
-#       if [ $? -eq 0 ]; then
-#         echo "Removed '$LABEL' label to PR #$number."
-#       fi
-#     fi
-#   else
-#     if [ ! "$has_label" = "true" ]; then
-#       echo "PR #$number is mergeable but does not have the '$LABEL' label."
-#       success=$(gh pr edit -R "$REPOSITORY" --add-label "$LABEL" "$number")
-#       if [ $? -eq 0 ]; then
-#         echo "Added '$LABEL' label to PR #$number."
-#       fi
-#     fi
-#   fi
-# done
+for num in `gh pr list -R $REPOSITORY 2>/dev/null | awk '{print $1}'`; do
+  MERGEABLE=$(gh pr view -R $REPOSITORY $num --json mergeable --jq ".mergeable")
+  echo "PR #$num mergeable status: $MERGEABLE"
+  has_label=$(gh pr view -R $REPOSITORY $num --json labels --jq ".labels | map(select(.name == \"$LABEL\")) | length > 0")
+  if [ "$MERGEABLE" = "CONFLICTING" ]; then
+    echo "PR #$num is not mergeable. Checking for '$LABEL' label..."
+    if [ "$has_label" = "true" ]; then
+      echo "PR #$num has the '$LABEL' label but is not mergeable. Removing label..."
+      gh pr edit -R $REPOSITORY --remove-label "$LABEL" $num
+    else
+      echo "PR #$num does not have the '$LABEL' label and is not mergeable. No action needed."
+    fi
+  else
+    echo "PR #$num is mergeable. Checking for '$LABEL' label..."
+    if [ "$has_label" = "false" ]; then
+      echo "PR #$num does not have the '$LABEL' label but is mergeable. Adding label..."
+      gh pr edit -R $REPOSITORY --add-label "$LABEL" $num
+    else
+      echo "PR #$num has the '$LABEL' label and is mergeable. No action needed."
+    fi
+  fi
+done
