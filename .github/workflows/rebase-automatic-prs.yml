@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set rebase labels
-        run: ./scripts/set_rebase_labels.sh
+        run: bash ${GITHUB_WORKSPACE}/scripts/set_rebase_labels.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: peter-evans/rebase@v4
