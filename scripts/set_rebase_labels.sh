@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 REPOSITORY="t-persson/etos"
 LABEL="automated-rebase"
