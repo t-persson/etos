@@ -6,12 +6,17 @@ jobs:
   rebase:
     runs-on: ubuntu-latest
     steps:
+      - name: Set rebase labels
+        run: bash ./scripts/set_rebase_labels.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: peter-evans/rebase@v4
         with:
           base: master
           # Only include that were automatically created by ETOS
           include-labels: |
-            automated-pr
+            automated-rebase
+          # automated-pr
           # Only include PRs created in this repository, not in forks
           # head: 'eiffel-community:*'
           # head: 'etos-pull-request-permissions:*'
