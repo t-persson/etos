@@ -1,7 +1,7 @@
 name: Automatic Rebase
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 # Setting concurrency to ensure that only one rebase workflow runs at a time.
@@ -35,7 +35,7 @@ jobs:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - uses: peter-evans/rebase@v4
         with:
-          base: main
+          base: master
           token: ${{ steps.generate-token.outputs.token }}
           # Only include PRs that were automatically created by ETOS
           include-labels: |
