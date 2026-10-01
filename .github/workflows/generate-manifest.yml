@@ -205,7 +205,7 @@ jobs:
             }
       - name: Build controller and generate manifest
         run: |
-          make docker-build split-installer IMG=${{steps.image.outputs.image}}:${{steps.image.outputs.version}}
+          make docker-build split-installer IMG=${{steps.image.outputs.image}}:${{steps.image.outputs.version}} ETOS_VERSION=${{steps.image.outputs.version}}
           mkdir -p manifests/controller
           cp dist/* manifests/controller/
       - name: Push docker image

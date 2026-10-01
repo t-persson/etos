@@ -19,9 +19,9 @@ import (
 	"context"
 	"errors"
 	"os"
-	"runtime/debug"
 
 	"github.com/eiffel-community/etos/api/v1alpha1"
+	"github.com/eiffel-community/etos/pkg/version"
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
@@ -166,24 +166,10 @@ func (t *ETOSTracer) newOtelResource(ctx context.Context) (*resource.Resource, e
 			semconv.ServiceNameKey.String(t.Name),
 			semconv.ServiceNamespaceKey.String(t.namespace),
 			semconv.ServiceInstanceIDKey.String(hostname),
-			semconv.ServiceVersionKey.String(vcsRevision()),
+			semconv.ServiceVersionKey.String(version.Version),
 		),
 		resource.WithTelemetrySDK(),
 		resource.WithProcess(),
 		resource.WithOS(),
 	)
-}
-
-// vcsRevision returns the vcs revision from the build.
-func vcsRevision() string {
-	buildInfo, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "(unknown)"
-	}
-	for _, val := range buildInfo.Settings {
-		if val.Key == "vcs.revision" {
-			return val.Value
-		}
-	}
-	return "(unknown)"
 }

@@ -25,6 +25,7 @@ import (
 	etosv1alpha1 "github.com/eiffel-community/etos/api/v1alpha1"
 	"github.com/eiffel-community/etos/internal/config"
 	"github.com/eiffel-community/etos/internal/readiness"
+	"github.com/eiffel-community/etos/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -461,6 +462,10 @@ func (r *ETOSSSEDeployment) environment() []corev1.EnvVar {
 		{
 			Name:  "SERVICE_HOST",
 			Value: "0.0.0.0",
+		},
+		{
+			Name:  version.EnvironmentVariable,
+			Value: version.Version,
 		},
 	}
 }

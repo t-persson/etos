@@ -25,6 +25,7 @@ import (
 	etosv1alpha1 "github.com/eiffel-community/etos/api/v1alpha1"
 	"github.com/eiffel-community/etos/internal/config"
 	"github.com/eiffel-community/etos/internal/readiness"
+	"github.com/eiffel-community/etos/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -546,7 +547,10 @@ func (r *ETOSApiDeployment) volumes() []corev1.Volume {
 
 // environment creates environment variables for providers if supplied.
 func (r *ETOSApiDeployment) environment() []corev1.EnvVar {
-	env := []corev1.EnvVar{}
+	env := []corev1.EnvVar{{
+		Name:  version.EnvironmentVariable,
+		Value: version.Version,
+	}}
 	if r.IUTProviderSecret != "" {
 		env = append(env, corev1.EnvVar{Name: "IUT_PROVIDERS", Value: "/providers/iut"})
 	}

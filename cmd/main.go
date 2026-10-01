@@ -243,6 +243,10 @@ func main() {
 		}
 	}()
 
+	if err := controller.RegisterStateMetrics(mgr); err != nil {
+		setupLog.Error(err, "Failed to register controller state metrics")
+		os.Exit(1)
+	}
 	if err = (&controller.TestRunReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),

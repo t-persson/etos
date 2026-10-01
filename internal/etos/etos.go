@@ -28,6 +28,7 @@ import (
 	etosapi "github.com/eiffel-community/etos/internal/etos/api"
 	etossuitestarter "github.com/eiffel-community/etos/internal/etos/suitestarter"
 	"github.com/eiffel-community/etos/internal/readiness"
+	"github.com/eiffel-community/etos/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -448,6 +449,10 @@ func (r *ETOSDeployment) provider(name types.NamespacedName, providerType, image
 		Spec: etosv1alpha1.ProviderSpec{
 			Type:  providerType,
 			Image: image,
+			Env: []corev1.EnvVar{{
+				Name:  version.EnvironmentVariable,
+				Value: version.Version,
+			}},
 		},
 	}
 }

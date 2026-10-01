@@ -55,6 +55,7 @@ import (
 	"github.com/eiffel-community/etos/internal/messaging"
 	"github.com/eiffel-community/etos/pkg/messaging/events"
 	"github.com/eiffel-community/etos/pkg/messaging/publisher"
+	"github.com/eiffel-community/etos/pkg/version"
 )
 
 const testRunKind = "TestRun"
@@ -206,7 +207,11 @@ func (r *TestRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				})); err != nil {
 					logger.Error(err, "Failed to publish shutdown event after testrun deadline exceeded")
 				}
-				return ctrl.Result{}, r.Status().Update(ctx, testrun)
+				err := r.Status().Update(ctx, testrun)
+				if err == nil {
+					recordTestRunTerminal(testrun, status.ReasonTimedOut, now.Time)
+				}
+				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
 		}
@@ -326,15 +331,21 @@ func (r *TestRunReconciler) reconcileActiveStatus(ctx context.Context, testrun *
 
 	conditions := testrun.Status.Conditions
 	if meta.FindStatusCondition(conditions, status.StatusActive) == nil {
+		now := metav1.NewTime(r.Now())
 		meta.SetStatusCondition(&testrun.Status.Conditions, metav1.Condition{
 			Type:    status.StatusActive,
 			Status:  metav1.ConditionFalse,
 			Reason:  status.ReasonPending,
 			Message: "Reconciliation started",
 		})
+		testrun.Status.StartTime = &now
 		testrun.Status.Verdict = string(jobs.StatusNone)
 		logger.Info("Setting initial status on testrun")
-		return true, r.Status().Update(ctx, testrun)
+		err := r.Status().Update(ctx, testrun)
+		if err == nil {
+			recordTestRunStarted(testrun)
+		}
+		return true, err
 	}
 
 	condition := metav1.ConditionUnknown
@@ -385,7 +396,11 @@ func (r *TestRunReconciler) reconcileActiveStatus(ctx context.Context, testrun *
 				now := metav1.Now()
 				testrun.Status.CompletionTime = &now
 				// Update status only; job and environment request deletion is deferred to the next reconcile.
-				return true, r.Status().Update(ctx, testrun)
+				err := r.Status().Update(ctx, testrun)
+				if err == nil {
+					recordTestRunTerminal(testrun, reason, now.Time)
+				}
+				return true, err
 			}
 			return true, r.Status().Update(ctx, testrun)
 		}
@@ -655,7 +670,11 @@ func (r *TestRunReconciler) checkEnvironment(ctx context.Context, testrun *etosv
 				Reason:  status.ReasonCompleted,
 				Message: "Environment ready",
 			}) {
-			return true, r.Status().Update(ctx, testrun)
+			err := r.Status().Update(ctx, testrun)
+			if err == nil {
+				recordTestRunEnvironmentReady(testrun, r.Now())
+			}
+			return true, err
 		}
 	}
 	return false, nil
@@ -847,6 +866,10 @@ func (r TestRunReconciler) suiteRunnerJob(ctx context.Context, obj client.Object
 		{
 			Name:  "SUITE_SOURCE",
 			Value: testrun.Spec.SuiteSource,
+		},
+		{
+			Name:  version.EnvironmentVariable,
+			Value: version.Version,
 		},
 	}
 	if cluster.Spec.OpenTelemetry.Enabled {

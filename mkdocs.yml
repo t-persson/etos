@@ -25,6 +25,7 @@ nav:
     - Installation: ./installation/index.md
     - Local installation: ./installation/local.md 
     - Production concerns: ./installation/production.md
+    - Controller metrics: ./installation/metrics.md
     - Upgrade: ./installation/upgrade.md
     - Uninstall: ./installation/uninstall.md
   - Guides:

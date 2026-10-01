@@ -27,6 +27,7 @@ import (
 	"github.com/eiffel-community/etos/pkg/logging"
 	"github.com/eiffel-community/etos/pkg/messaging/events"
 	"github.com/eiffel-community/etos/pkg/messaging/subscriber"
+	"github.com/eiffel-community/etos/pkg/version"
 	"github.com/fernet/fernet-go"
 	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -246,10 +247,10 @@ func environmentVariables(
 		return environment, errors.Join(errors.New("failed to get and encrypt Eiffel MessageBus password"), err)
 	}
 
-	version := environmentrequest.Spec.SchemaVersion
+	apiVersion := environmentrequest.Spec.SchemaVersion
 	// The ETOS API expects the version to be "v1alpha" instead of "v1alpha1", so we need to convert it here.
-	if version == "v1alpha1" {
-		version = "v1alpha"
+	if apiVersion == "v1alpha1" {
+		apiVersion = "v1alpha"
 	}
 
 	environment = map[string]string{
@@ -257,6 +258,7 @@ func environmentVariables(
 		"SUITE_ID":                    environmentrequest.Spec.Identifier,
 		"ETOS_API":                    environmentrequest.Spec.Config.EtosApi,
 		"ETR_VERSION":                 environmentrequest.Spec.Providers.ExecutionSpace.TestRunner,
+		version.EnvironmentVariable:   os.Getenv(version.EnvironmentVariable),
 		"ETOS_GRAPHQL_SERVER":         environmentrequest.Spec.Config.GraphQlServer,
 		"ETOS_RABBITMQ_EXCHANGE":      environmentrequest.Spec.Config.EtosMessageBus.Exchange,
 		"ETOS_RABBITMQ_HOST":          environmentrequest.Spec.Config.EtosMessageBus.Host,
@@ -277,7 +279,7 @@ func environmentVariables(
 		"ENVIRONMENT_ID":              executionspaceSpec.ID,
 		"ENVIRONMENT_URL": fmt.Sprintf("%s/%s/testrun/%s",
 			environmentrequest.Spec.Config.EtosApi,
-			version,
+			apiVersion,
 			executionspaceSpec.ID,
 		),
 	}

@@ -44,6 +44,7 @@ import (
 	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/eiffel-community/etos/internal/controller/status"
+	"github.com/eiffel-community/etos/pkg/version"
 )
 
 const environmentRequestKind = "EnvironmentRequest"
@@ -133,6 +134,7 @@ func (r *EnvironmentRequestReconciler) reconcile(ctx context.Context, environmen
 	logger := logf.FromContext(ctx)
 	// Set initial statuses if not set.
 	if ready := meta.FindStatusCondition(environmentrequest.Status.Conditions, status.StatusReady); ready == nil {
+		now := metav1.NewTime(time.Now())
 		meta.SetStatusCondition(&environmentrequest.Status.Conditions,
 			metav1.Condition{
 				Type:    status.StatusReady,
@@ -140,7 +142,12 @@ func (r *EnvironmentRequestReconciler) reconcile(ctx context.Context, environmen
 				Reason:  status.ReasonPending,
 				Message: "Reconciliation started",
 			})
-		return r.Status().Update(ctx, environmentrequest)
+		environmentrequest.Status.StartTime = &now
+		err := r.Status().Update(ctx, environmentrequest)
+		if err == nil {
+			recordEnvironmentRequestStarted(environmentrequest)
+		}
+		return err
 	} else if ready.Reason == status.ReasonFailed {
 		logger.Info("Environment request has failed, reconciliation canceled")
 		return nil
@@ -153,13 +160,19 @@ func (r *EnvironmentRequestReconciler) reconcile(ctx context.Context, environmen
 		LogArea:        environmentrequest.Spec.Providers.LogArea.ID,
 	}
 	if err := checkProviders(ctx, r, environmentrequest.Namespace, providers); err != nil {
-		meta.SetStatusCondition(&environmentrequest.Status.Conditions,
+		if meta.SetStatusCondition(&environmentrequest.Status.Conditions,
 			metav1.Condition{
 				Type:    status.StatusReady,
 				Status:  metav1.ConditionFalse,
 				Reason:  status.ReasonFailed,
 				Message: fmt.Sprintf("Provider check failed: %s", err.Error()),
-			})
+			}) {
+			err := r.Status().Update(ctx, environmentrequest)
+			if err == nil {
+				recordEnvironmentRequestOutcome(environmentrequest, outcomeFailure, time.Now())
+			}
+			return err
+		}
 		return r.Status().Update(ctx, environmentrequest)
 	}
 
@@ -192,7 +205,11 @@ func (r *EnvironmentRequestReconciler) reconcileEnvironmentProvider(ctx context.
 			}) {
 			environmentRequestCondition := meta.FindStatusCondition(environmentrequest.Status.Conditions, status.StatusReady)
 			environmentrequest.Status.CompletionTime = &environmentRequestCondition.LastTransitionTime
-			return r.Status().Update(ctx, environmentrequest)
+			err := r.Status().Update(ctx, environmentrequest)
+			if err == nil {
+				recordEnvironmentRequestOutcome(environmentrequest, outcomeFailure, time.Now())
+			}
+			return err
 		}
 	case jobs.StatusSuccessful:
 		result := jobManager.Result(ctx, "environment-provider", "iut-provider", "execution-space-provider", "log-area-provider")
@@ -216,7 +233,15 @@ func (r *EnvironmentRequestReconciler) reconcileEnvironmentProvider(ctx context.
 			environmentRequestCondition := meta.FindStatusCondition(environmentrequest.Status.Conditions, status.StatusReady)
 			environmentrequest.Status.CompletionTime = &environmentRequestCondition.LastTransitionTime
 			// Update status only; job deletion is deferred to the next reconcile.
-			return r.Status().Update(ctx, environmentrequest)
+			err := r.Status().Update(ctx, environmentrequest)
+			if err == nil {
+				outcome := outcomeSuccess
+				if result.Conclusion == jobs.ConclusionFailed {
+					outcome = outcomeFailure
+				}
+				recordEnvironmentRequestOutcome(environmentrequest, outcome, time.Now())
+			}
+			return err
 		}
 	case jobs.StatusActive:
 		if meta.SetStatusCondition(conditions,
@@ -393,6 +418,10 @@ func (r EnvironmentRequestReconciler) envVarListFrom(ctx context.Context, enviro
 			Name:  "ETR_VERSION",
 			Value: environmentrequest.Spec.Config.TestRunnerVersion,
 		},
+		{
+			Name:  version.EnvironmentVariable,
+			Value: version.Version,
+		},
 
 		// Eiffel Message Bus variables
 		{
@@ -522,6 +551,7 @@ func (r EnvironmentRequestReconciler) reconcileDeletion(ctx context.Context, env
 	allErr = errors.Join(allErr, err)
 
 	if allErr != nil {
+		recordEnvironmentReleaseFailure(environmentrequest)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if (environments + iuts + logAreas + executionSpaces) != 0 {
@@ -541,6 +571,7 @@ func (r EnvironmentRequestReconciler) reconcileDeletion(ctx context.Context, env
 			}
 			return ctrl.Result{}, err
 		}
+		recordEnvironmentReleaseSuccess(environmentrequest, time.Now())
 	}
 	return ctrl.Result{}, nil
 }
