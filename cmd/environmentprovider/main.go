@@ -19,19 +19,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/eiffel-community/etos/api/v1alpha1"
 	"github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/pkg/logging"
 	"github.com/eiffel-community/etos/pkg/provider"
 	"github.com/eiffel-community/etos/pkg/splitter"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type environmentProvider struct{}
+type environmentProvider struct {
+	// meter overrides the global meter, for testing.
+	meter metric.Meter
+	// now overrides the wall clock, for testing.
+	now func() time.Time
+}
 
 // main creates a new Environment resource based on data in an EnvironmentRequest.
 func main() {
@@ -50,26 +58,33 @@ func (p *environmentProvider) Provision(ctx context.Context, cfg provider.Provis
 		"Namespace", cfg.EnvironmentRequest.Namespace,
 	)
 
+	minRequired := min(environmentRequest.Spec.MaximumAmount, environmentRequest.Spec.MinimumAmount)
+	recorder := p.metrics(ctx).start(ctx, environmentRequest, minRequired, p.clock())
+	defer recorder.finishOnPanic(ctx)
+
 	iuts, err := provider.GetIUTs(ctx, environmentRequest.Spec.ID, cfg.Namespace)
 	if err != nil {
+		recorder.failed(ctx, stageResourceLookup, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get IUTs")
 		return err
 	}
 	logAreas, err := provider.GetLogAreas(ctx, environmentRequest.Spec.ID, cfg.Namespace)
 	if err != nil {
+		recorder.failed(ctx, stageResourceLookup, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get LogAreas")
 		return err
 	}
 	executionSpaces, err := provider.GetExecutionSpaces(ctx, environmentRequest.Spec.ID, cfg.Namespace)
 	if err != nil {
+		recorder.failed(ctx, stageResourceLookup, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get ExecutionSpaces")
 		return err
 	}
 
-	minRequired := min(environmentRequest.Spec.MaximumAmount, environmentRequest.Spec.MinimumAmount)
+	recorder.enter(stageCapacityCheck)
 	maxPossible := min(len(iuts.Items), len(logAreas.Items), len(executionSpaces.Items))
 	if maxPossible < minRequired {
 		err := fmt.Errorf(
@@ -77,11 +92,13 @@ func (p *environmentProvider) Provision(ctx context.Context, cfg provider.Provis
 			most %d environments with %d log areas and %d execution spaces`,
 			minRequired, maxPossible, len(logAreas.Items), len(executionSpaces.Items),
 		)
+		recorder.failed(ctx, stageCapacityCheck, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "not enough resources to create environments")
 		return err
 	}
 
+	recorder.enter(stageEnvironmentCreate)
 	// TODO: Choose strategy
 	split := splitter.NewRoundRobinSplitter().SetSize(maxPossible)
 	for _, test := range environmentRequest.Spec.Splitter.Tests {
@@ -90,6 +107,7 @@ func (p *environmentProvider) Provision(ctx context.Context, cfg provider.Provis
 	if err := p.createEnvironments(
 		ctx,
 		cfg,
+		recorder,
 		maxPossible,
 		split.Split(),
 		environmentRequest,
@@ -97,18 +115,44 @@ func (p *environmentProvider) Provision(ctx context.Context, cfg provider.Provis
 		logAreas,
 		executionSpaces,
 	); err != nil {
+		recorder.failed(ctx, stageEnvironmentCreate, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create environments")
 		return err
 	}
+	recorder.succeeded(ctx, maxPossible)
 	span.SetStatus(codes.Ok, "successfully provisioned environment(s)")
 	return nil
+}
+
+// metrics returns the provisioning metric instruments, falling back to no-op instruments
+// so that a metrics problem never fails provisioning.
+func (p *environmentProvider) metrics(ctx context.Context) *provisioningMetrics {
+	meter := p.meter
+	if meter == nil {
+		meter = otel.Meter(meterName)
+	}
+	m, err := newProvisioningMetrics(meter)
+	if err != nil {
+		logging.FromContextOrDiscard(ctx).Error(err, "failed to create environment provider metrics")
+		return noopProvisioningMetrics()
+	}
+	return m
+}
+
+// clock returns the function used to read the current time.
+func (p *environmentProvider) clock() func() time.Time {
+	if p.now == nil {
+		return time.Now
+	}
+	return p.now
 }
 
 // createEnvironments creates the Environment resources in Kubernetes.
 func (p *environmentProvider) createEnvironments(
 	ctx context.Context,
 	cfg provider.ProvisionConfig,
+	recorder *provisioningRecorder,
 	maxPossible int,
 	tests [][]v1alpha1.Test,
 	environmentRequest *v1alpha1.EnvironmentRequest,
@@ -124,9 +168,11 @@ func (p *environmentProvider) createEnvironments(
 		logArea := logAreas.Items[i]
 		executionSpace := executionSpaces.Items[i]
 		iut := iuts.Items[i]
-		if err := CreateEnvironment(
+		err := CreateEnvironment(
 			ctx, i, tests[i], environmentRequest, cfg.Namespace, iut, executionSpace, logArea,
-		); err != nil {
+		)
+		recorder.environmentCreated(ctx, err)
+		if err != nil {
 			// We have to fail environment provisioning if any environment fails to be created, since
 			// we split the tests across all environments and if one environment fails to be created,
 			// we can't guarantee that all tests will be executed.
