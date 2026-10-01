@@ -40,6 +40,7 @@ import (
 	"github.com/eiffel-community/etos/internal/controller/jobs"
 	"github.com/eiffel-community/etos/internal/controller/status"
 	"github.com/eiffel-community/etos/internal/release"
+	"github.com/eiffel-community/etos/pkg/version"
 )
 
 const environmentKind = "Environment"
@@ -428,6 +429,11 @@ func (r EnvironmentReconciler) releaseJob(ctx context.Context, obj client.Object
 
 	envList := []corev1.EnvVar{
 		{
+			// The ETOS release, attached to the providers' telemetry as etos.version.
+			Name:  version.EnvironmentVariable,
+			Value: version.Version,
+		},
+		{
 			Name:  "TRACEPARENT",
 			Value: environmentRequest.Annotations["etos.eiffel-community.github.io/traceparent"],
 		},
@@ -451,10 +457,11 @@ func (r EnvironmentReconciler) releaseJob(ctx context.Context, obj client.Object
 		})
 	}
 
-	// Add OTEL variables to all releaser containers
-	iutProvider.Spec.Env = append(iutProvider.Spec.Env, envList...)
-	logAreaProvider.Spec.Env = append(logAreaProvider.Spec.Env, envList...)
-	executionSpaceProvider.Spec.Env = append(executionSpaceProvider.Spec.Env, envList...)
+	// Add the controller-provided variables to all releaser containers, overriding any Provider
+	// variable with the same name.
+	iutProvider.Spec.Env = upsertEnv(iutProvider.Spec.Env, envList)
+	logAreaProvider.Spec.Env = upsertEnv(logAreaProvider.Spec.Env, envList)
+	executionSpaceProvider.Spec.Env = upsertEnv(executionSpaceProvider.Spec.Env, envList)
 
 	ttl := int32(300)
 	grace := int64(30)

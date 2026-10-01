@@ -129,7 +129,11 @@ func ParseParameters(providerType string, amountFunc AmountFunc) Parameters {
 
 // run is the main function for running a provider. It will fetch the EnvironmentRequest,
 // create a messagebus publisher, and a logger, and then call the runProvider function.
-func run(provider Provider, params Parameters) error {
+//
+// The attempt metrics are recorded once on every exit path, including panics, and are flushed
+// by the OpenTelemetry shutdown before run returns.
+func run(provider Provider, params Parameters) (err error) {
+	start := time.Now()
 	ctx := context.TODO()
 
 	// Console logger up front so startup failures are logged before the full
@@ -149,6 +153,8 @@ func run(provider Provider, params Parameters) error {
 			logger.Error(shutdownErr, "failed to shutdown OpenTelemetry tracer")
 		}
 	}()
+	attempt := newProviderAttempt(otel.GetMeterProvider(), params.providerType, params.releaseEnvironment, start)
+	defer attempt.finish(&err)
 
 	environmentRequest, err := EnvironmentRequest(
 		ctx,
@@ -158,6 +164,7 @@ func run(provider Provider, params Parameters) error {
 	if err != nil {
 		return reportStartupFailure(logger, fmt.Errorf("failed to get EnvironmentRequest: %w", err))
 	}
+	attempt.setAPIVersion(environmentRequest.Spec.SchemaVersion)
 
 	// Manage termination signals.
 	ctx, term := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -216,6 +223,7 @@ func run(provider Provider, params Parameters) error {
 	eventPublisher.AddLogger(logger)
 	ctx = logr.NewContext(ctx, logger)
 
+	attempt.setStage(stageOperation)
 	if err := writeTerminationLog(ctx, runProvider, provider, params, environmentRequest); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Provider execution failed")
@@ -442,7 +450,7 @@ func writeTerminationLog(
 		logger.Error(err, "failed to write error result to termination-log")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to write result to termination-log")
-		return err
+		return &terminationLogError{err: err}
 	}
 	span.SetStatus(codes.Ok, "result written to termination-log successfully")
 	return nil

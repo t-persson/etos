@@ -18,6 +18,7 @@ package controller
 import (
 	etosv1alpha1 "github.com/eiffel-community/etos/api/v1alpha1"
 	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,4 +67,36 @@ func isStatusReason(conditions []metav1.Condition, conditionType, reason string)
 		return true
 	}
 	return false
+}
+
+// upsertEnv returns base with the overrides applied by name, without modifying base.
+// An override replaces the first base variable with the same name, keeping its position so that
+// $(VAR) references keep resolving, and later base variables with that name are dropped.
+// Overrides without a match in base are appended in order. This keeps controller-provided variables
+// authoritative and the container's Env list free of duplicate names.
+func upsertEnv(base, overrides []corev1.EnvVar) []corev1.EnvVar {
+	index := make(map[string]int, len(overrides))
+	for i, override := range overrides {
+		index[override.Name] = i
+	}
+	merged := make([]corev1.EnvVar, 0, len(base)+len(overrides))
+	applied := make(map[string]bool, len(overrides))
+	for _, env := range base {
+		i, overridden := index[env.Name]
+		if !overridden {
+			merged = append(merged, env)
+			continue
+		}
+		if !applied[env.Name] {
+			merged = append(merged, overrides[i])
+			applied[env.Name] = true
+		}
+	}
+	for _, override := range overrides {
+		if !applied[override.Name] {
+			merged = append(merged, override)
+			applied[override.Name] = true
+		}
+	}
+	return merged
 }

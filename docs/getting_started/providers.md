@@ -77,6 +77,11 @@ func GetIUTs(ctx context.Context, environmentRequestID, namespace string) (v1alp
 }
 ```
 
+## Metrics
+
+Go providers that use the `RunIutProvider`, `RunLogAreaProvider`, or `RunExecutionSpaceProvider` functions from the provider package record provisioning and release metrics automatically, and providers that call `ExecutionSpace.WaitForTestRunner` also record Test Runner readiness metrics.
+They are exported over OTLP when OpenTelemetry is enabled in the ETOS `Cluster`. See [Provider metrics](../installation/provider_metrics.md).
+
 ## Example code
 
 - [Execution space provider](https://github.com/eiffel-community/etos/blob/main/cmd/executionspaceprovider/main.go)

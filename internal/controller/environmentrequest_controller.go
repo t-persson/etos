@@ -742,7 +742,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 						{
 							Name:      "iut-provider",
 							Image:     iutProvider.Spec.Image,
-							Env:       append(iutProvider.Spec.Env, envVarList...),
+							Env:       upsertEnv(iutProvider.Spec.Env, envVarList),
 							EnvFrom:   iutProvider.Spec.EnvFrom,
 							Resources: iutProvider.Spec.Resources,
 							Args: []string{
@@ -754,7 +754,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 						{
 							Name:      "log-area-provider",
 							Image:     logAreaProvider.Spec.Image,
-							Env:       append(logAreaProvider.Spec.Env, envVarList...),
+							Env:       upsertEnv(logAreaProvider.Spec.Env, envVarList),
 							EnvFrom:   logAreaProvider.Spec.EnvFrom,
 							Resources: logAreaProvider.Spec.Resources,
 							Args: []string{
@@ -766,7 +766,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 						{
 							Name:      "execution-space-provider",
 							Image:     executionSpaceProvider.Spec.Image,
-							Env:       append(executionSpaceProvider.Spec.Env, envVarList...),
+							Env:       upsertEnv(executionSpaceProvider.Spec.Env, envVarList),
 							EnvFrom:   executionSpaceProvider.Spec.EnvFrom,
 							Resources: executionSpaceProvider.Spec.Resources,
 							Args: []string{

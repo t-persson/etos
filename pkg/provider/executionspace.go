@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"time"
 
 	"github.com/eiffel-community/etos/api/v1alpha1"
 	"github.com/eiffel-community/etos/api/v1alpha2"
@@ -158,9 +159,31 @@ func (e *ExecutionSpace) Create(ctx context.Context) error {
 
 // WaitForTestRunner waits for the test runner in the ExecutionSpace to be up and running by listening to events from
 // the ETOS SSE endpoint.
+//
+// Each call records one Test Runner readiness attempt metric with a normalized outcome.
 func (e *ExecutionSpace) WaitForTestRunner(
 	ctx context.Context, environmentRequest *v1alpha1.EnvironmentRequest,
 ) error {
+	start := time.Now()
+	errorType, err := e.waitForTestRunner(ctx, environmentRequest)
+	outcomeErr := err
+	if err != nil {
+		switch ctxErr := ctx.Err(); {
+		case errors.Is(ctxErr, context.DeadlineExceeded):
+			errorType = errorTypeTimeout
+			outcomeErr = errors.Join(err, ctxErr)
+		case errors.Is(ctxErr, context.Canceled):
+			errorType = errorTypeCanceled
+		}
+	}
+	recordTestRunnerReadiness(ctx, environmentRequest.Spec.SchemaVersion, start, outcomeErr, errorType)
+	return err
+}
+
+// waitForTestRunner waits for the test runner status and returns a bounded error type with any error.
+func (e *ExecutionSpace) waitForTestRunner(
+	ctx context.Context, environmentRequest *v1alpha1.EnvironmentRequest,
+) (string, error) {
 	logger := logging.FromContextOrDiscard(ctx)
 	sse := subscriber.NewSSESubscriber(environmentRequest.Spec.Config.EtosSse)
 	etrInstance := e.Spec.Instructions.Environment["ENVIRONMENT_ID"]
@@ -175,7 +198,7 @@ func (e *ExecutionSpace) WaitForTestRunner(
 	) {
 		if err != nil {
 			logger.Error(err, "Error while waiting for test runner to start")
-			return err
+			return errorTypeStreamError, err
 		}
 		switch e := event.(type) {
 		case events.Status:
@@ -188,15 +211,15 @@ func (e *ExecutionSpace) WaitForTestRunner(
 			}
 			logger.Info("Received status event for test runner", "status", e.Data.Status)
 			if e.Data.Status == events.StatusError {
-				return fmt.Errorf("test runner reported an error status: %s", e.Data.Message)
+				return errorTypeTestRunner, fmt.Errorf("test runner reported an error status: %s", e.Data.Message)
 			}
 			logger.Info("Test runner is up and running")
-			return nil
+			return "", nil
 		case events.Shutdown:
-			return errors.New("received shutdown event while waiting for test runner to start")
+			return errorTypeShutdown, errors.New("received shutdown event while waiting for test runner to start")
 		}
 	}
-	return errors.New("event stream closed while waiting for test runner to start")
+	return errorTypeStreamClosed, errors.New("event stream closed while waiting for test runner to start")
 }
 
 // DeleteExecutionSpace deletes an ExecutionSpace resource from Kubernetes.

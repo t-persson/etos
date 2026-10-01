@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,6 +36,7 @@ import (
 	etosv1alpha1 "github.com/eiffel-community/etos/api/v1alpha1"
 	etosv1alpha2 "github.com/eiffel-community/etos/api/v1alpha2"
 	"github.com/eiffel-community/etos/internal/controller/status"
+	"github.com/eiffel-community/etos/pkg/version"
 )
 
 var _ = Describe("Environment Controller", func() {
@@ -57,7 +59,9 @@ var _ = Describe("Environment Controller", func() {
 			environmentRequest, err := createEnvironmentRequest(ctx, "test-environment-request")
 			Expect(err).NotTo(HaveOccurred())
 			By("ensuring that the iut, executor and log area providers exist")
-			iutProvider, err := createProvider(ctx, environmentRequest.Spec.Providers.IUT.ID, "iut")
+			// The IUT provider defines ETOS_VERSION itself, which the controller value must override.
+			iutProvider, err := createProvider(ctx, environmentRequest.Spec.Providers.IUT.ID, "iut",
+				corev1.EnvVar{Name: version.EnvironmentVariable, Value: "provider-defined"})
 			Expect(err).NotTo(HaveOccurred())
 			executorProvider, err := createProvider(ctx, environmentRequest.Spec.Providers.ExecutionSpace.ID, "execution-space")
 			Expect(err).NotTo(HaveOccurred())
@@ -163,6 +167,30 @@ var _ = Describe("Environment Controller", func() {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, found)).To(Succeed())
 			}).Should(Succeed())
 
+			By("Checking that the ETOS version is passed once to every provider releaser container")
+			reconciler := EnvironmentReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, environment)).To(Succeed())
+			releaseJob, err := reconciler.releaseJob(ctx, environment)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(releaseJob.Spec.Template.Spec.InitContainers).To(HaveLen(3))
+			expectSingleETOSVersion(releaseJob.Spec.Template.Spec.InitContainers)
+			Expect(k8sClient.Create(ctx, releaseJob, client.DryRunAll)).To(Succeed())
+
+			By("Checking that the ETOS version is passed once to every provider provisioning container")
+			environmentRequest := &etosv1alpha1.EnvironmentRequest{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: "test-environment-request", Namespace: "default",
+			}, environmentRequest)).To(Succeed())
+			environmentRequest.Spec.Config.EncryptionKey = etosv1alpha1.Var{Value: "key"}
+			environmentRequest.Spec.Config.EtosMessageBus.Password = &etosv1alpha1.Var{Value: "password"}
+			environmentRequest.Spec.Config.EiffelMessageBus.Password = &etosv1alpha1.Var{Value: "password"}
+			requestReconciler := EnvironmentRequestReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			provisionJob, err := requestReconciler.environmentProviderJob(ctx, environmentRequest)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(provisionJob.Spec.Template.Spec.InitContainers).To(HaveLen(3))
+			expectSingleETOSVersion(provisionJob.Spec.Template.Spec.InitContainers)
+			Expect(k8sClient.Create(ctx, provisionJob, client.DryRunAll)).To(Succeed())
+
 			By("Checking that status conditions are initialized")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, environment)).To(Succeed())
@@ -205,8 +233,27 @@ var _ = Describe("Environment Controller", func() {
 	})
 })
 
-// createProvider is a helper function to create a Provider resource with the specified name and type.
-func createProvider(ctx context.Context, name, providerType string) (client.Object, error) {
+// expectSingleETOSVersion asserts that every container has exactly one ETOS_VERSION variable,
+// carrying the controller's version.
+func expectSingleETOSVersion(containers []corev1.Container) {
+	GinkgoHelper()
+	for _, container := range containers {
+		var versions []corev1.EnvVar
+		for _, env := range container.Env {
+			if env.Name == version.EnvironmentVariable {
+				versions = append(versions, env)
+			}
+		}
+		Expect(versions).To(Equal([]corev1.EnvVar{{
+			Name:  version.EnvironmentVariable,
+			Value: version.Version,
+		}}), "container %s", container.Name)
+	}
+}
+
+// createProvider is a helper function to create a Provider resource with the specified name, type
+// and environment variables.
+func createProvider(ctx context.Context, name, providerType string, env ...corev1.EnvVar) (client.Object, error) {
 	provider := &etosv1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -215,6 +262,7 @@ func createProvider(ctx context.Context, name, providerType string) (client.Obje
 		Spec: etosv1alpha1.ProviderSpec{
 			Type:  providerType,
 			Image: "example.com/provider-image:latest",
+			Env:   env,
 		},
 	}
 	return provider, k8sClient.Create(ctx, provider)
