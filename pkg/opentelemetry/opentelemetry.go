@@ -160,13 +160,21 @@ func (t *ETOSTracer) Shutdown(ctx context.Context) error {
 	if !t.enabled {
 		return nil
 	}
-	// Shutting down the meter provider exports the final metric values, which short-lived
-	// workloads such as providers rely on, since they exit before the next periodic export.
-	return errors.Join(
-		t.tracerProvider.Shutdown(ctx),
-		t.meterProvider.Shutdown(ctx),
-		t.LoggerProvider.Shutdown(ctx),
-	)
+	// Only providers that Start initialized are shut down, so Shutdown is safe after a
+	// partially failed Start. Shutting down the meter provider exports the final metric
+	// values, which short-lived workloads such as providers rely on, since they exit before
+	// the next periodic export.
+	var errs []error
+	if t.tracerProvider != nil {
+		errs = append(errs, t.tracerProvider.Shutdown(ctx))
+	}
+	if t.meterProvider != nil {
+		errs = append(errs, t.meterProvider.Shutdown(ctx))
+	}
+	if t.LoggerProvider != nil {
+		errs = append(errs, t.LoggerProvider.Shutdown(ctx))
+	}
+	return errors.Join(errs...)
 }
 
 // opts returns the options for the OpenTelemetry gRPC exporter based on the environment variables.

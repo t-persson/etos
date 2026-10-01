@@ -21,6 +21,7 @@ import (
 
 	"github.com/eiffel-community/etos/pkg/version"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 func TestResourceCarriesETOSVersion(t *testing.T) {
@@ -32,5 +33,16 @@ func TestResourceCarriesETOSVersion(t *testing.T) {
 	got, ok := res.Set().Value(attribute.Key("etos.version"))
 	if !ok || got.AsString() != "9.1.0" {
 		t.Fatalf("etos.version = %q (present %t), want %q", got.AsString(), ok, "9.1.0")
+	}
+}
+
+func TestShutdownAfterPartialStart(t *testing.T) {
+	tracer := &ETOSTracer{enabled: true}
+	if err := tracer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() with no initialized providers error = %v", err)
+	}
+	tracer.tracerProvider = trace.NewTracerProvider()
+	if err := tracer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() with only a tracer provider error = %v", err)
 	}
 }
