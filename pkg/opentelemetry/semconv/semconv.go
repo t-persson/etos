@@ -17,6 +17,12 @@ package semconv
 
 import "go.opentelemetry.io/otel/attribute"
 
+// ETOSVersion returns an attribute.String with the key "etos.version" and the
+// provided value. It identifies the ETOS release that produced the telemetry.
+func ETOSVersion(val string) attribute.KeyValue {
+	return attribute.String("etos.version", val)
+}
+
 // ETOSProviderEnvironmentRequest returns an attribute.String with the key
 // "etos.provider.environment_request" and the provided value.
 func ETOSProviderEnvironmentRequest(val string) attribute.KeyValue {

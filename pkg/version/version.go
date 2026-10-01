@@ -17,9 +17,22 @@
 // Package version contains the ETOS release version embedded in each binary.
 package version
 
+import "os"
+
 // Version is set by the release build and is intentionally not derived from a
 // commit SHA.
 var Version = "unknown"
 
 // EnvironmentVariable is the name used to propagate the ETOS release version.
 const EnvironmentVariable = "ETOS_VERSION"
+
+// Current returns the ETOS release version for this process. The ETOS_VERSION
+// environment variable, set by the ETOS controller on the workloads it creates,
+// takes precedence over the version embedded at build time, because workload
+// images such as providers are not built with an embedded version.
+func Current() string {
+	if v := os.Getenv(EnvironmentVariable); v != "" {
+		return v
+	}
+	return Version
+}

@@ -21,14 +21,17 @@ import (
 	"os"
 
 	"github.com/eiffel-community/etos/api/v1alpha1"
+	etossemconv "github.com/eiffel-community/etos/pkg/opentelemetry/semconv"
 	"github.com/eiffel-community/etos/pkg/version"
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
@@ -40,6 +43,7 @@ type ETOSTracer struct {
 	Name           string
 	namespace      string
 	tracerProvider *trace.TracerProvider
+	meterProvider  *sdkmetric.MeterProvider
 	LoggerProvider *log.LoggerProvider
 }
 
@@ -90,7 +94,26 @@ func (t *ETOSTracer) Start(ctx context.Context) error {
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
+	if err := t.meter(ctx, res); err != nil {
+		return err
+	}
 	return t.logger(ctx, res)
+}
+
+// meter initializes the OpenTelemetry meter provider and sets it as the global meter provider.
+// Metrics are exported over OTLP/gRPC to the same collector as traces. Instruments created
+// through otel.Meter before Start are bound to this provider once it is set.
+func (t *ETOSTracer) meter(ctx context.Context, res *resource.Resource) error {
+	exporter, err := otlpmetricgrpc.New(ctx, t.metricOpts(t.collectorHost)...)
+	if err != nil {
+		return errors.Join(err, errors.New("failed to create OpenTelemetry gRPC metric exporter"))
+	}
+	t.meterProvider = sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
+	)
+	otel.SetMeterProvider(t.meterProvider)
+	return nil
 }
 
 // logger initializes the OpenTelemetry logger provider and sets it as the global logger provider.
@@ -137,10 +160,21 @@ func (t *ETOSTracer) Shutdown(ctx context.Context) error {
 	if !t.enabled {
 		return nil
 	}
-	return errors.Join(
-		t.tracerProvider.Shutdown(ctx),
-		t.LoggerProvider.Shutdown(ctx),
-	)
+	// Only providers that Start initialized are shut down, so Shutdown is safe after a
+	// partially failed Start. Shutting down the meter provider exports the final metric
+	// values, which short-lived workloads such as providers rely on, since they exit before
+	// the next periodic export.
+	var errs []error
+	if t.tracerProvider != nil {
+		errs = append(errs, t.tracerProvider.Shutdown(ctx))
+	}
+	if t.meterProvider != nil {
+		errs = append(errs, t.meterProvider.Shutdown(ctx))
+	}
+	if t.LoggerProvider != nil {
+		errs = append(errs, t.LoggerProvider.Shutdown(ctx))
+	}
+	return errors.Join(errs...)
 }
 
 // opts returns the options for the OpenTelemetry gRPC exporter based on the environment variables.
@@ -151,6 +185,19 @@ func (t *ETOSTracer) opts(collector string) []otlptracegrpc.Option {
 	insecure, isSet := os.LookupEnv("OTEL_EXPORTER_OTLP_INSECURE")
 	if isSet && insecure == "true" {
 		opts = append(opts, otlptracegrpc.WithInsecure())
+	}
+	return opts
+}
+
+// metricOpts returns the options for the OpenTelemetry gRPC metric exporter based on the
+// environment variables.
+func (t *ETOSTracer) metricOpts(collector string) []otlpmetricgrpc.Option {
+	var opts []otlpmetricgrpc.Option
+	opts = append(opts, otlpmetricgrpc.WithEndpointURL(collector))
+
+	insecure, isSet := os.LookupEnv("OTEL_EXPORTER_OTLP_INSECURE")
+	if isSet && insecure == "true" {
+		opts = append(opts, otlpmetricgrpc.WithInsecure())
 	}
 	return opts
 }
@@ -167,6 +214,7 @@ func (t *ETOSTracer) newOtelResource(ctx context.Context) (*resource.Resource, e
 			semconv.ServiceNamespaceKey.String(t.namespace),
 			semconv.ServiceInstanceIDKey.String(hostname),
 			semconv.ServiceVersionKey.String(version.Version),
+			etossemconv.ETOSVersion(version.Current()),
 		),
 		resource.WithTelemetrySDK(),
 		resource.WithProcess(),
