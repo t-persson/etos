@@ -656,6 +656,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 		labels["etos.eiffel-community.github.io/id"] = environmentrequest.Spec.Identifier
 	}
 
+	environmentProviderNamePrefix := ""
 	var cluster *etosv1alpha1.Cluster
 	if clusterName := environmentrequest.Labels["etos.eiffel-community.github.io/cluster"]; clusterName != "" {
 		labels["etos.eiffel-community.github.io/cluster"] = clusterName
@@ -668,6 +669,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 			logger.Info("Failed to get cluster resource!")
 			return nil, err
 		}
+		environmentProviderNamePrefix = fmt.Sprintf("%s-", clusterName)
 	}
 
 	envVarList, err := r.envVarListFrom(ctx, environmentrequest, cluster)
@@ -754,7 +756,7 @@ func (r EnvironmentRequestReconciler) environmentProviderJob(ctx context.Context
 							Args: []string{
 								fmt.Sprintf("-namespace=%s", environmentrequest.Namespace),
 								fmt.Sprintf("-environment-request=%s", environmentrequest.Name),
-								"-provider=environment-provider",
+								fmt.Sprintf("-provider=%s-environment-provider", environmentProviderNamePrefix),
 							},
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
