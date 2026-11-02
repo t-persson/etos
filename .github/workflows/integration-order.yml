@@ -1,0 +1,60 @@
+# Integration order will fetch all pull requests labeled with 'automated-pr' and
+# a label defining which source repository the pull request is from, then it will
+# check if they are "next in line" for integration, and label them with 'integration-next'.
+# If they are not "next in line" for integration, they are labeled with 'integration-blocked'.
+# Integration pull requests from repositories must be integrated in the correct commit
+# history order, which is what we check when checking "next in line".
+# Example for etos-api:
+# History:
+# * commit 2
+# * commit 1
+# PR on etos:
+# * integrate commit 1
+# * integrate commit 2
+# In this case "integrate commit 1" must be merged before "integrate commit 2",
+# labeling "integrate commit 1" with 'integration-next' and "integrate commit 2" as
+# 'integration-blocked' until "integrate commit 1" has been merged.
+# If pull requests are from different repositories, then order does no matter.
+name: Integration order
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, closed, labeled, unlabeled, ready_for_review, converted_to_draft]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+# Every run reconciles all open PRs, so replacing a pending run loses no queue entries.
+concurrency:
+  group: integration-order
+  cancel-in-progress: false
+
+jobs:
+  label:
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      (github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
+      (github.event.label.name != 'integration-next' && github.event.label.name != 'integration-blocked')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Never execute scripts from a PR head in this privileged workflow.
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Reconcile integration labels
+        run: python scripts/integration_order.py "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
